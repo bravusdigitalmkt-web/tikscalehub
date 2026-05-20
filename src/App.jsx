@@ -59,7 +59,7 @@ async function callOpenRouter(key, model, system, user, temp = 0.9) {
       model,
       messages: [{ role: "system", content: system }, { role: "user", content: user }],
       temperature: temp,
-      max_tokens: 8000,
+      max_tokens: 6000,
     }),
   });
   if (!r.ok) throw new Error((await r.json()).error?.message || "Erro OpenRouter");
