@@ -1,237 +1,513 @@
 import { useState, useEffect } from "react";
 
-const OPENROUTER_API_URL = "https://openrouter.ai/api/v1/chat/completions";
+// ═══════════════════════════════════════════════════════════════
+// TIKTOK SHOP — MODO ULTRA CONVERTER MILHÕES
+// OpenRouter · Grok · Gemini
+// POV 10S · Coringa · Hooks 12 Padrões · Villain · Meta · Veo3
+// Agent Finder · Escala CBO · Shield v3
+// ═══════════════════════════════════════════════════════════════
 
-const MODELOS_DISPONIVEIS = {
-  "google/gemini-2.5-flash":                       "⚡ Gemini 2.5 Flash (RECOMENDADO)",
-  "deepseek/deepseek-r1:free":                     "🔵 DeepSeek R1 (Grátis · Raciocínio)",
-  "deepseek/deepseek-chat-v3-0324:free":           "💨 DeepSeek V3 (Grátis · Rápido)",
-  "meta-llama/llama-4-maverick:free":              "🦙 Llama 4 Maverick (Grátis · Potente)",
-  "meta-llama/llama-4-scout:free":                 "🦅 Llama 4 Scout (Grátis · Leve)",
-  "mistralai/mistral-small-3.1-24b-instruct:free": "🎯 Mistral Small 3.1 (Grátis · Estável)",
+// ───────────────────────────────────────────────────────────────
+// APIs
+// ───────────────────────────────────────────────────────────────
+
+const PROVIDERS = {
+  openrouter: {
+    name: "⚡ OpenRouter",
+    free: true,
+    keyUrl: "https://openrouter.ai/settings/keys",
+    models: [
+      { id: "google/gemini-2.5-flash", name: "Gemini 2.5 Flash ✨ RECOMENDADO", free: true },
+      { id: "deepseek/deepseek-r1:free", name: "DeepSeek R1 (Grátis)", free: true },
+      { id: "meta-llama/llama-4-maverick:free", name: "Llama 4 Maverick (Grátis)", free: true },
+      { id: "mistralai/mistral-small-3.1-24b-instruct:free", name: "Mistral Small (Grátis)", free: true },
+    ],
+  },
+  grok: {
+  name: "🤖 Grok (xAI)",
+  free: false,
+  keyUrl: "https://console.x.ai",
+  models: [
+    { id: "grok-4", name: "Grok 4 ✨ NOVO" },
+    { id: "grok-3", name: "Grok 3" },
+    { id: "grok-3-mini", name: "Grok 3 Mini" },
+    { id: "grok-beta", name: "Grok Beta" },
+  ],
+},
+  gemini: {
+    name: "🆓 Gemini (Google)",
+    free: true,
+    keyUrl: "https://aistudio.google.com/apikey",
+    models: [
+      { id: "gemini-2.5-flash", name: "Gemini 2.5 Flash ✨ RECOMENDADO", free: true },
+      { id: "gemini-1.5-pro", name: "Gemini 1.5 Pro", free: true },
+      { id: "gemini-1.5-flash", name: "Gemini 1.5 Flash", free: true },
+    ],
+  },
 };
 
-let modeloAtual = "google/gemini-2.5-flash";
-let apiKeyAtual = "";
-
-async function callOpenRouter(systemPrompt, userContent, temperature = 0.9) {
-  const response = await fetch(OPENROUTER_API_URL, {
+async function callOpenRouter(key, model, system, user, temp = 0.9) {
+  const r = await fetch("https://openrouter.ai/api/v1/chat/completions", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      "Authorization": `Bearer ${apiKeyAtual}`,
+      Authorization: `Bearer ${key}`,
       "HTTP-Referer": window.location.origin,
-      "X-Title": "TikTok Shop Generator SUPREME",
+      "X-Title": "TikTok Ultra Converter",
     },
     body: JSON.stringify({
-      model: modeloAtual,
-      messages: [
-        { role: "system", content: systemPrompt },
-        { role: "user",   content: userContent  },
-      ],
-      temperature,
+      model,
+      messages: [{ role: "system", content: system }, { role: "user", content: user }],
+      temperature: temp,
       max_tokens: 8000,
     }),
   });
-  if (!response.ok) {
-    const error = await response.json();
-    throw new Error(error.error?.message || "Erro na API OpenRouter");
-  }
-  const data = await response.json();
-  return data.choices[0].message.content;
+  if (!r.ok) throw new Error((await r.json()).error?.message || "Erro OpenRouter");
+  return (await r.json()).choices[0].message.content;
 }
 
-async function callOpenRouterJSON(systemPrompt, userContent, temperature = 0.9) {
-  const text = await callOpenRouter(
-    systemPrompt + "\n\n⚠️ CRÍTICO: RESPONDA APENAS COM JSON PURO. SEM ```json, SEM markdown, SEM texto antes/depois.",
-    userContent,
-    temperature
-  );
-  let cleaned = text.replace(/```json|```/gi, "").trim();
-  const start = cleaned.indexOf("{");
-  const end   = cleaned.lastIndexOf("}");
-  if (start !== -1 && end !== -1 && end > start) cleaned = cleaned.substring(start, end + 1);
-  try { return JSON.parse(cleaned); }
-  catch {
-    try { return JSON.parse(cleaned.replace(/[""]/g, '"').replace(/['']/g, "'")); }
-    catch { return JSON.parse(cleaned.replace(/[\u0000-\u001F\u007F-\u009F]/g, "")); }
-  }
-}
+async function callGrok(key, model, system, user, temp = 0.9) {
+  const r = await fetch("https://api.x.ai/v1/responses", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${key}`,
+    },
+    body: JSON.stringify({
+      model: "grok-4",
+      max_output_tokens: 8000,
+      input: `${system}\n\n${user}`,
+    }),
+  });
 
-async function testarConexao(apiKey, modelo) {
+  if (!r.ok) {
+    const err = await r.json();
+    throw new Error(err.error?.message || `Erro Grok ${r.status}`);
+  }
+
+  const data = await r.json();
+
   try {
-    const response = await fetch(OPENROUTER_API_URL, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${apiKey}`,
-        "HTTP-Referer": window.location.origin,
-      },
-      body: JSON.stringify({
-        model: modelo,
-        messages: [{ role: "user", content: "Responda apenas: OK" }],
-        max_tokens: 10,
-      }),
-    });
-    if (!response.ok) {
-      const error = await response.json();
-      return { success: false, message: error.error?.message || "Erro desconhecido" };
+    if (data.output) {
+      for (const block of data.output) {
+        if (block.type === "message" && block.content) {
+          for (const c of block.content) {
+            if (c.type === "output_text" && c.text) return c.text;
+          }
+        }
+      }
     }
-    return { success: true };
+    if (data.output_text) return data.output_text;
+    if (data.content?.[0]?.text) return data.content[0].text;
+    if (data.choices?.[0]?.message?.content) return data.choices[0].message.content;
+    throw new Error("Resposta vazia do Grok");
   } catch (e) {
-    return { success: false, message: e.message };
+    throw new Error("Erro ao processar resposta: " + e.message);
   }
 }
 
-// ═══════════════════════════════════════════════════════
-// DADOS
-// ═══════════════════════════════════════════════════════
+async function callGemini(key, model, system, user, temp = 0.9) {
+  const r = await fetch(
+    `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        contents: [{ parts: [{ text: `${system}\n\n${user}` }] }],
+        generationConfig: { temperature: temp, maxOutputTokens: 8000 },
+      }),
+    }
+  );
+  if (!r.ok) throw new Error((await r.json()).error?.message || "Erro Gemini");
+  return (await r.json()).candidates[0].content.parts[0].text;
+}
 
-const CATEGORIAS = [
-  "Beleza e cuidados pessoais","Saúde","Casa e jardim","Moda feminina",
-  "Moda masculina","Esportes","Eletrônicos","Bebê e maternidade",
-  "Pet","Alimentos e bebidas","Livros e papelaria","Brinquedos",
-  "Automotivo","Ferramentas","Móveis","Decoração","Joias e acessórios",
-  "Cuidados com cabelo","Skincare","Maquiagem","Suplementos",
-  "Fitness","Tecnologia","Games","Música","Arte","Outro"
+async function callAPI(provider, key, model, system, user, temp = 0.9) {
+  const fns = { openrouter: callOpenRouter, grok: callGrok, gemini: callGemini };
+  return fns[provider](key, model, system, user, temp);
+}
+
+async function callJSON(provider, key, model, system, user, temp = 0.9) {
+  const txt = await callAPI(
+    provider, key, model,
+    system + "\n\n⚠️ CRÍTICO: RESPONDA APENAS JSON PURO. SEM ```json SEM markdown SEM texto antes ou depois.",
+    user, temp
+  );
+  let c = txt.replace(/```json|```/gi, "").trim();
+  const s = c.indexOf("{"), e = c.lastIndexOf("}");
+  if (s !== -1 && e !== -1) c = c.substring(s, e + 1);
+  try { return JSON.parse(c); }
+  catch {
+    c = c.replace(/[""]/g, '"').replace(/[\u0000-\u001F]/g, "");
+    return JSON.parse(c);
+  }
+}
+
+// ───────────────────────────────────────────────────────────────
+// DADOS
+// ───────────────────────────────────────────────────────────────
+
+const CATS = [
+  "Beleza e cuidados pessoais","Saúde","Moda feminina","Moda masculina",
+  "Casa e jardim","Esportes","Eletrônicos","Bebê e maternidade","Pet",
+  "Alimentos e bebidas","Skincare","Maquiagem","Suplementos","Fitness",
+  "Cuidados com cabelo","Joias e acessórios","Decoração","Tecnologia","Outro",
 ];
 
-const BLINDADOR_ULTRA = `
-🛡️ BLINDADOR ULTRA - 6 CAMADAS DE PROTEÇÃO:
+// ───────────────────────────────────────────────────────────────
+// BLINDADOR
+// ───────────────────────────────────────────────────────────────
 
-NÍVEL 1: PROIBIÇÕES ABSOLUTAS
-❌ NUNCA USE: "remove","acaba com","cura","elimina","100%","garantido","milagre",
-"emagrece","queima gordura","seca barriga","detox","trata doença","efeito botox",
-"regenera células","anti-inflamatório","médicos odeiam","segredo proibido"
+const BLINDADOR = `
+🛡️ BLINDADOR ULTRA v3 — COMPLIANCE TIKTOK SHOP BR:
 
-NÍVEL 2: SUBSTITUIÇÕES OBRIGATÓRIAS
-"remove rugas" → "ajuda na aparência da pele"
+PROIBIDO ABSOLUTO:
+❌ "remove","cura","elimina","100%","garantido","milagre","emagrece",
+"queima gordura","seca barriga","detox","trata doença","efeito botox",
+"regenera","anti-inflamatório","médicos odeiam","antes e depois",
+"perda de peso","redução de gordura","segredo proibido"
+
+SUBSTITUIÇÕES OBRIGATÓRIAS:
+"remove rugas" → "ajuda na aparência"
 "cura acne" → "auxilia nos cuidados"
 "emagrece" → "complementa rotina saudável"
+"elimina manchas" → "clareia gradualmente"
 "cresce cabelo" → "fortalece os fios"
 
-NÍVEL 3: LINGUAGEM LIFESTYLE
-✅ USE: "tenho usado","gostei","na minha rotina","percebi","textura","sensação",
-"após algumas semanas","com uso contínuo","pode ajudar","auxilia","contribui"
+LINGUAGEM OBRIGATÓRIA:
+✅ "tenho usado","gostei","na minha rotina","percebi","textura",
+"sensação","após algumas semanas","pode ajudar","auxilia","contribui"
 
-NÍVEL 4: CATEGORIAS DE RISCO
-🟢 VERDE (baixo): rotina, textura, experiência
-🟡 AMARELO (médio): skincare, cabelo - linguagem extra-suave
-🔴 VERMELHO (alto): emagrecimento, acne, anti-idade - MÁXIMO cuidado
-
-NÍVEL 5: REGRAS TÉCNICAS
-✅ CTA: "carrinho laranja" (NUNCA "amarelo")
+REGRAS TÉCNICAS:
+✅ CTA: SEMPRE "carrinho laranja" (NUNCA "amarelo" ou outras cores)
 ✅ Timeframes: mínimo 2-3 semanas
-✅ Tom: experiência pessoal, não promessa
-✅ Evitar: antes/depois, depoimentos exagerados, aparência médica
+✅ Tom: experiência pessoal, NUNCA promessa absoluta
+✅ NUNCA mencionar outras plataformas (Shopee, Amazon, Instagram, link na bio)
+✅ Compra SEMPRE pelo carrinho laranja do TikTok
 
-NÍVEL 6: CHECKLIST PRÉ-OUTPUT
-Verificar: promessas absolutas, alegações médicas, palavras proibidas, tom lifestyle
-
-CRÍTICO: Estas regras são NÃO-NEGOCIÁVEIS!
+CRÍTICO: NÃO-NEGOCIÁVEL EM TODOS OS OUTPUTS!
 `;
 
-const BASE_PROMPT = `Você é especialista em TikTok Shop Brasil, hooks científicos ($1M testado) e copywriting de alta conversão.
+// ───────────────────────────────────────────────────────────────
+// PROMPTS
+// ───────────────────────────────────────────────────────────────
 
-COMPLIANCE ULTRA-CRÍTICO:
-❌ NUNCA: "remove","cura","elimina","100%","garantido","emagrece","queima gordura"
-✅ SEMPRE: "ajuda","auxilia","melhora","contribui","fortalece","complementa"
-FOCO: Experiência pessoal, rotina, textura - NÃO promessas.
+const BASE = `Você é especialista em TikTok Shop Brasil, copywriting de alta conversão e hooks científicos testados com $1M+.
+COMPLIANCE: ❌ NUNCA: "remove","cura","elimina","100%","garantido","emagrece"
+✅ SEMPRE: "ajuda","auxilia","melhora","contribui","fortalece"
+CTA: SEMPRE "carrinho laranja". Tom: português BR coloquial. Experiência pessoal, não promessa.
+RESPONDA APENAS JSON PURO, sem markdown, sem backticks.`;
 
-REGRAS ABSOLUTAS:
-• Roteiro: MÁXIMO 30 palavras
-• Hashtags: EXATAMENTE 5
-• Legenda: 15-20 palavras
-• POV Hook: 6-12 palavras
-• CTA: "carrinho laranja" (obrigatório)
-• Tom: português BR coloquial
-• Timeframes: mínimo 2-3 semanas
+const PROMPT_POV = (lim, qty) => BASE + `
 
-RESPONDA APENAS COM JSON PURO, sem markdown, sem backticks.`;
+FORMATO POV 10S — O QUE MAIS VENDE NO TIKTOK SHOP:
+Vídeo 8-10 segundos. Pessoa segura produto na mão.
+Hook = texto na tela + narrado nos primeiros 2s.
+SEO keyword falada E escrita nos primeiros 2s.
+Loop perfeito: fim conecta com início.
 
-const PROMPT_HOOKS = BASE_PROMPT + `
-JSON EXATO:
+LIMITE: MÁXIMO ${lim} PALAVRAS faladas/tela.
+
+JSON:
 {
-  "pov_hooks": [
-    {"padrao":"Problema → Solução","hook":"...","estrutura":"...","quando_usar":"...","por_que_funciona":"...","exemplo_variacao":"..."},
-    {"padrao":"Nunca Experimentei","hook":"...","estrutura":"...","quando_usar":"...","por_que_funciona":"...","exemplo_variacao":"..."},
-    {"padrao":"Prova Social Terceiros","hook":"...","estrutura":"...","quando_usar":"...","por_que_funciona":"...","exemplo_variacao":"..."},
-    {"padrao":"E Se Eu Dissesse","hook":"...","estrutura":"...","quando_usar":"...","por_que_funciona":"...","exemplo_variacao":"..."},
-    {"padrao":"Tentei Tudo","hook":"...","estrutura":"...","quando_usar":"...","por_que_funciona":"...","exemplo_variacao":"..."}
-  ]
-}`;
-
-const PROMPT_ROTEIROS = BASE_PROMPT + `
-JSON EXATO (3 roteiros):
-{
-  "roteiros_villain_hero": [
-    {"numero":1,"pov_hook":"...","roteiro_narrado":"...","estrutura":"Hook→Villain→Hero→Proof→CTA","villain":"...","hero":"...","proof":"...","legenda_seo":"...","hashtags":["#t1","#t2","#t3","#t4","#t5"],"duracao_estimada":"20-25s","quando_usar":"..."},
-    {"numero":2,"pov_hook":"...","roteiro_narrado":"...","estrutura":"Hook→Villain→Hero→Proof→CTA","villain":"...","hero":"...","proof":"...","legenda_seo":"...","hashtags":["#t1","#t2","#t3","#t4","#t5"],"duracao_estimada":"20-25s","quando_usar":"..."},
-    {"numero":3,"pov_hook":"...","roteiro_narrado":"...","estrutura":"Hook→Villain→Hero→Proof→CTA","villain":"...","hero":"...","proof":"...","legenda_seo":"...","hashtags":["#t1","#t2","#t3","#t4","#t5"],"duracao_estimada":"15-20s","quando_usar":"..."}
+  "videos_pov": [
+    {
+      "numero": 1,
+      "padrao_hook": "Inversão Vilão",
+      "keyword_seo": "keyword buscada no TikTok",
+      "hook_texto_tela": "texto na tela máx 12 palavras",
+      "hook_narrado": "o que falar nos primeiros 2s com keyword",
+      "body_visual": "o que fazer com produto na mão (2-7s)",
+      "body_narrado": "o que falar enquanto mostra",
+      "cta": "carrinho laranja 🛒",
+      "legenda": "legenda SEO com keyword máx 15 palavras",
+      "hashtags": ["#tag1","#tag2","#tag3","#tag4","#tag5"],
+      "total_palavras": ${lim},
+      "duracao": "8-10s",
+      "loop": "como fazer o loop perfeito",
+      "gatilho_usado": "nome do gatilho psicológico",
+      "por_que_converte": "explicação em 1 linha"
+    }
   ]
 }
-CRÍTICO: roteiro_narrado MÁXIMO 30 PALAVRAS. Sempre termine com "carrinho laranja".`;
+Gere EXATAMENTE ${qty} vídeos POV com padrões de hook DIFERENTES.`;
 
-const PROMPT_CORINGA = BASE_PROMPT + `
-JSON EXATO (10 variações):
+const PROMPT_CORINGA = (lim, qty) => BASE + `
+
+FORMATO CORINGA — BASEADO EM VÍDEOS REAIS (214k, 84k, 70k, 11k views):
+Exemplo 214k: "não marca não fica transparente e ainda modela o corpo short duplo drift fit original por menos de 30 reais clica no carrinho laranja antes que acabe"
+Exemplo 84k: "short duplo drift original cintura alta não transparece no agachamento segura a barriga menos de trinta reais clica no carrinho laranja antes de acabar"
+
+ESTRUTURA OBRIGATÓRIA:
+1. NEGATIVAS (3-4 objeções destruídas)
+2. PRODUTO + ORIGINAL
+3. PREÇO ÂNCORA "por menos de X reais"
+4. CTA + URGÊNCIA "carrinho laranja antes que acabe"
+
+LIMITE: MÁXIMO ${lim} PALAVRAS. Tom rápido, sem vírgulas em excesso.
+
+JSON:
 {
   "formato_coringa": [
-    {"variacao":1,"texto":"...","estrutura":"...","quando_usar":"..."},
-    {"variacao":2,"texto":"...","estrutura":"...","quando_usar":"..."},
-    {"variacao":3,"texto":"...","estrutura":"...","quando_usar":"..."},
-    {"variacao":4,"texto":"...","estrutura":"...","quando_usar":"..."},
-    {"variacao":5,"texto":"...","estrutura":"...","quando_usar":"..."},
-    {"variacao":6,"texto":"...","estrutura":"...","quando_usar":"..."},
-    {"variacao":7,"texto":"...","estrutura":"...","quando_usar":"..."},
-    {"variacao":8,"texto":"...","estrutura":"...","quando_usar":"..."},
-    {"variacao":9,"texto":"...","estrutura":"...","quando_usar":"..."},
-    {"variacao":10,"texto":"...","estrutura":"...","quando_usar":"..."}
+    {
+      "numero": 1,
+      "texto_completo": "script completo para falar/texto na tela",
+      "negativas_usadas": ["não X","não Y","não Z"],
+      "preco_ancora": "menos de X reais",
+      "urgencia": "antes que acabe",
+      "total_palavras": ${lim},
+      "duracao": "8-10s",
+      "inspirado_em": "214k views",
+      "quando_usar": "contexto ideal"
+    }
   ]
 }
-Cada texto: 25-35 palavras. Tom rápido, POV format, sem perder compliance.`;
+Gere EXATAMENTE ${qty} variações DIFERENTES. Varie negativas, ângulo, urgência, âncora.`;
 
-const PROMPT_ESCALA = BASE_PROMPT + `
-Analise o script vencedor e gere variações mantendo a MESMA estrutura, padrão, tom e duração (~30 palavras).
-Varie APENAS: Pain language, Emotion words, Result description, Timeframes, Social proof, Price anchors.
-JSON EXATO:
+const PROMPT_HOOKS = (lim, qty) => BASE + `
+
+OS 12 PADRÕES MILIONÁRIOS VALIDADOS:
+
+1. INTERRUPÇÃO DE PADRÃO — Conversão 8.5%
+Estrutura: "[Ação inesperada] + [Benefício oculto]"
+Exemplo: "Eu tava jogando isso fora até descobrir..."
+
+2. DOR INVISÍVEL — Conversão 9.2%
+Estrutura: "Se [sintoma sutil], você tem [problema sério]"
+Exemplo: "Se você acorda cansada mesmo dormindo 8h..."
+
+3. TIMING CRÍTICO — Conversão 12.3%
+Estrutura: "[Grupo] tem até [deadline] para [ação]"
+Exemplo: "Se você tem mais de 30, próximos 15 dias..."
+
+4. INVERSÃO VILÃO — Conversão 15.7%
+Estrutura: "[Solução vendida] é o problema"
+Exemplo: "Seu hidratante tá ressecando sua pele..."
+
+5. PROVA SOCIAL EXTREMA — Conversão 10.2%
+Estrutura: "[Número massivo] + [Ação] + [Resultado]"
+Exemplo: "217 mil pessoas pararam de usar..."
+
+6. DESCOBERTA CIENTÍFICA — Conversão 11.8%
+Estrutura: "Estudo comprovou: [fato chocante]"
+Exemplo: "Pesquisa: 73% usam hidratante errado..."
+
+7. ERRO COMUM FATAL — Conversão 13.8%
+Estrutura: "Todo mundo faz e tá destruindo [resultado]"
+Exemplo: "Você tá lavando o rosto errado..."
+
+8. TRANSFORMAÇÃO IMEDIATA — Conversão 14.5%
+Estrutura: "Em [tempo curto] isso aconteceu"
+Exemplo: "3 dias usando e minha pele mudou..."
+
+9. SEGREDO DE INSIDER — Conversão 16.2%
+Estrutura: "[Profissional] não quer que saiba"
+Exemplo: "Dermatologista revelou: não precisa gastar R$300..."
+
+10. COMPARAÇÃO CHOCANTE — Conversão 10.8%
+Estrutura: "Custa menos que [banal] e faz [incrível]"
+Exemplo: "Menos que um açaí e sua pele muda..."
+
+11. PROBLEMA TRIPLO — Conversão 12.5%
+Estrutura: "Se tem [P1], [P2] e [P3]..."
+Exemplo: "Pele oleosa, acne e manchas? Resolve os 3..."
+
+12. PERGUNTA IMPOSSÍVEL — Conversão 13.1%
+Estrutura: "Por que [ruim] se você faz [certo]?"
+Exemplo: "Por que a pele fica oleosa se você lava 3x?"
+
+FÓRMULAS MATEMÁTICAS:
+F1 — DOR+AMPLIFICAÇÃO (8.5%): "[Problema] + [Consequência] + [Até quando]"
+F2 — EXCLUSIVIDADE+URGÊNCIA (12.3%): "[Grupo] + [Janela] + [Ação]"
+F3 — INVERSÃO+REVELAÇÃO (15.7%): "[Crença] + [É falsa] + [Verdade]"
+F4 — NÚMERO+PROVA (10.2%): "[Número] + [Pessoas/Dias] + [Resultado]"
+F5 — PERGUNTA+DOR (13.8%): "Por que [ruim] + se [ação certa]?"
+
+ANATOMIA DO HOOK:
+[0.0-0.5s] GATILHO EMOCIONAL
+[0.5-1.0s] CONTEXTO ESPECÍFICO
+[1.0-1.5s] PROMESSA/CURIOSIDADE
+[1.5-2.0s] BRIDGE PRO CONTEÚDO
+
+MÉTRICAS:
+Hook Ruim: CTR <5% · Retenção <30%
+Hook Médio: CTR 5-8% · Retenção 30-50%
+Hook Bom: CTR 8-12% · Retenção 50-70%
+Hook Campeão: CTR >12% · Retenção >70%
+Hook Milionário: CTR >15% · Retenção >80%
+
+LIMITE: MÁXIMO ${lim} PALAVRAS por hook.
+
+JSON:
 {
-  "analise": {"padrao_detectado":"...","estrutura":"...","tom_emocional":"...","duracao_palavras":30},
-  "variacoes": [
-    {"numero":1,"tipo_variacao":"Pain Language","pov_hook":"...","roteiro_narrado":"...","legenda_seo":"...","hashtags":["#t1","#t2","#t3","#t4","#t5"],"o_que_mudou":"X → Y"}
+  "hooks": [
+    {
+      "numero": 1,
+      "padrao": "Inversão Vilão",
+      "formula_usada": "F3 — INVERSÃO+REVELAÇÃO",
+      "hook_texto_tela": "texto na tela máx 12 palavras",
+      "hook_narrado": "versão falada com keyword",
+      "keyword_integrada": "keyword SEO usada",
+      "score_probabilidade": 92,
+      "ctr_esperado": "14-17%",
+      "retencao_esperada": "75%+",
+      "classificacao": "🏆 Hook Milionário",
+      "conversao_media": "15.7%",
+      "gatilho_psicologico": "nome do gatilho",
+      "por_que_para_scroll": "explicação científica em 1 linha",
+      "variacao_1": "primeira variação mantendo padrão",
+      "variacao_2": "segunda variação",
+      "variacao_3": "terceira variação",
+      "quando_usar": "contexto ideal",
+      "nicho_ideal": "beleza / saúde / moda / todos"
+    }
   ]
-}`;
+}
+Gere EXATAMENTE ${qty} hooks usando padrões DIFERENTES dos 12 acima.
+Use pelo menos 8 padrões diferentes. Ordene por score_probabilidade decrescente.`;
 
-const PROMPT_AGENT_FINDER = `Você é o AGENT FINDER 2.0 — especialista em analisar dados do Kalodata e identificar produtos vencedores para TikTok Shop Brasil.
+const PROMPT_VILLAIN = (lim, qty) => BASE + `
 
-MISSÃO: Extrair dados (mesmo que bagunçados), calcular métricas e ranquear produtos.
+ROTEIRO VILLAIN VS HERO — Para produtos que precisam de explicação (15-20s).
+ESTRUTURA: Hook(0-2s) → Villain(2-6s) → Hero(6-12s) → Proof(12-17s) → CTA(17-20s)
+SEO: keyword falada E escrita nos primeiros 2s.
+LIMITE: MÁXIMO ${lim} PALAVRAS no roteiro narrado.
 
-CÁLCULOS OBRIGATÓRIOS:
+JSON:
+{
+  "roteiros_villain_hero": [
+    {
+      "numero": 1,
+      "keyword_seo": "keyword buscada",
+      "pov_hook_tela": "texto na tela máx 10 palavras",
+      "roteiro_narrado": "roteiro completo máx ${lim} palavras terminando em carrinho laranja",
+      "villain": "o problema que agita a dor",
+      "hero": "como o produto resolve",
+      "proof": "prova/experiência pessoal compliance",
+      "legenda_seo": "legenda com keyword máx 15 palavras",
+      "hashtags": ["#tag1","#tag2","#tag3","#tag4","#tag5"],
+      "duracao": "15-20s",
+      "quando_usar": "contexto ideal"
+    }
+  ]
+}
+Gere EXATAMENTE ${qty} roteiros DIFERENTES.`;
+
+const PROMPT_META = (lim, qty) => BASE + `
+
+META ADS — 5 hooks que mais convertem com $1M+ testado:
+1. Problema Salvo: "Esse [produto] salvou minha [situação]"
+2. Nunca Experimentei: "Nunca pensei que ia gostar até..."
+3. Prova Social Terceiros: "Minha [relação] me indicou..."
+4. E Se Eu Dissesse: "E se eu dissesse que [benefício] por menos de [preço]?"
+5. Tentei Tudo: "Tentei tudo para [problema] até descobrir..."
+
+LIMITE: MÁXIMO ${lim} PALAVRAS por script.
+
+JSON:
+{
+  "meta_hooks": [
+    {
+      "numero": 1,
+      "nome": "Problema Salvo",
+      "hook_principal": "primeira frase que para o scroll",
+      "script_completo": "script completo máx ${lim} palavras",
+      "variacoes_dor": ["variação 1","variação 2","variação 3"],
+      "instrucao_avatar": "como falar/agir no vídeo",
+      "nivel_conversao": "MÁXIMO"
+    }
+  ],
+  "estrategia_teste": {
+    "ordem_teste": "qual testar primeiro",
+    "como_escalar": "como escalar o vencedor"
+  }
+}
+Gere EXATAMENTE ${qty} hooks usando os 5 padrões.`;
+
+const PROMPT_VEO = (lim, qty) => BASE + `
+
+VEO 3 — Scripts UGC para influencer virtual brasileira.
+Tom: natural, conversacional, brasileiro autêntico.
+Estilo: influencer real falando para câmera com produto na mão.
+LIMITE: MÁXIMO ${lim} PALAVRAS. Sem storytelling complexo. Sem antes/depois.
+
+JSON:
+{
+  "scripts_veo": [
+    {
+      "numero": 1,
+      "tom_emocional": "natural",
+      "script": "o que a influencer fala",
+      "descricao_visual": "o que ela faz enquanto fala",
+      "palavras": 25,
+      "prompt_negativo": "sem texto, sem legendas, sem logos, sem distorções, sem mudanças de roupa, sem distorção facial, sem mudanças no fundo, sem movimentos bruscos"
+    }
+  ]
+}
+TONS: natural, excited, sincera, confiante, amigável, descoberta.
+Gere EXATAMENTE ${qty} scripts com tons DIFERENTES.`;
+
+const PROMPT_ESCALA = (lim, qty) => BASE + `
+
+ESCALA CIENTÍFICA CBO — Multiplica scripts vencedores.
+Metodologia: testa 100 → 10 vendem → 3 explodem.
+
+MANTER IGUAL: estrutura, padrão hook, tom, CTA "carrinho laranja", máx ${lim} palavras.
+VARIAR APENAS:
+🔄 Pain language (descamando → ardendo → irritando)
+🔄 Emotion words (salvou → resolveu → mudou)
+🔄 Result description (lisinha → hidratada → renovada)
+🔄 Timeframes (2 semanas → 15 dias → 1 mês)
+🔄 Social proof (eu → minha irmã → 5 mil mulheres)
+🔄 Price anchors (R$60 → menos de 60 → só 60 reais)
+
+JSON:
+{
+  "analise": {
+    "padrao_detectado": "padrão identificado",
+    "estrutura": "estrutura do script",
+    "tom_emocional": "tom identificado",
+    "total_palavras": ${lim},
+    "gatilho_principal": "gatilho usado"
+  },
+  "variacoes": [
+    {
+      "numero": 1,
+      "tipo_variacao": "Pain Language",
+      "hook_texto": "hook variado",
+      "roteiro": "roteiro variado máx ${lim} palavras",
+      "legenda": "legenda SEO variada",
+      "hashtags": ["#tag1","#tag2","#tag3","#tag4","#tag5"],
+      "o_que_mudou": "original → variado"
+    }
+  ]
+}
+Gere EXATAMENTE ${qty} variações.`;
+
+const PROMPT_AGENT = () => BASE + `
+
+AGENT FINDER 2.0 — Produtos vencedores via Kalodata.
+
+CÁLCULOS:
 - Receita/criador = GMV ÷ criadores
-- Comissão/venda = Preço × taxa comissão (estimar 10% se não informado)
+- Comissão/venda = Preço × taxa comissão
 - ROI mês = Comissão/venda × 30 × 30
 
-SCORE (0-100):
-SCORE = (Conversão × 0.30) + (Crescimento_normalizado × 0.25) + (Comissão_normalizada × 0.20) + (Receita_criador_normalizada × 0.15) + (Criadores_score × 0.10)
+SCORE: (Conversão×0.30)+(Crescimento×0.25)+(Comissão×0.20)+(Receita/criador×0.15)+(Criadores×0.10)
 
 CLASSIFICAÇÃO:
 90-100: 🏆 OURO ESCONDIDO
 75-89: 🔥 CAVALO DE GUERRA
 60-74: 💥 FOGUETE
 40-59: ✅ VIÁVEL
-abaixo de 40: 🔴 IGNORAR
+0-39: 🔴 IGNORAR
 
-RED FLAGS:
-❌ Preço abaixo R$20 com comissão abaixo 8%
-❌ Mais de 200 criadores com crescimento abaixo 50%
-❌ Conversão abaixo 15%
-❌ Comissão/venda abaixo R$3
-
-JSON EXATO:
+JSON:
 {
   "produtos": [
     {
-      "nome": "...",
-      "categoria": "...",
+      "nome": "nome completo",
+      "categoria": "categoria",
       "valor": 49.90,
       "gmv": "R$54.280",
       "conversao": 80.85,
@@ -243,13 +519,13 @@ JSON EXATO:
       "roi_mes_30_vendas": 6741,
       "score": 99,
       "classificacao": "🏆 OURO ESCONDIDO",
-      "por_que": "...",
+      "por_que": "motivo do score",
       "red_flags": [],
-      "path_10k": "45 vendas/dia × R$7,49 = R$10.099/mês",
-      "descricao_produto": "...",
+      "path_10k": "X vendas/dia × R$Y = R$10k/mês",
+      "descricao_produto": "descrição atrativa",
       "angulos_matadores": ["ângulo 1","ângulo 2","ângulo 3"],
-      "hooks_prontos": ["hook 1 pronto para gravar","hook 2","hook 3"],
-      "creators_data": "47 creators | GMV R$54k | Conv 80.85%"
+      "hooks_prontos": ["hook 1","hook 2","hook 3"],
+      "creators_data": "X creators | GMV R$Xk | Conv X%"
     }
   ],
   "top_3": [
@@ -257,306 +533,374 @@ JSON EXATO:
     {"posicao":2,"nome":"...","score":96,"recomendacao":"SEGUNDA PRIORIDADE"},
     {"posicao":3,"nome":"...","score":94,"recomendacao":"TESTE PARALELO"}
   ],
-  "resumo": {
-    "total_analisados":0,"ouro":0,"cavalo":0,"foguete":0,"viavel":0,"ignorar":0
-  }
-}
-RESPONDA APENAS COM JSON PURO, sem markdown, sem backticks.`;
-
-const PROMPT_META_ADS = `Você é especialista em Meta Ads com $1M+ em ad spend e 500+ hooks testados.
-RESPONDA APENAS COM JSON PURO, sem markdown, sem backticks.
-JSON EXATO:
-{
-  "meta_hooks": [
-    {"numero":1,"nome":"Problema Salvo","hook_principal":"...","script_completo":"...","variacoes_dor":["...","...","..."],"instrucao_avatar":"...","quando_usar":"...","por_que_converte":"...","nivel_conversao":"ALTO"},
-    {"numero":2,"nome":"Nunca Experimentei","hook_principal":"...","script_completo":"...","variacoes_dor":["...","...","..."],"instrucao_avatar":"...","quando_usar":"...","por_que_converte":"...","nivel_conversao":"ALTO"},
-    {"numero":3,"nome":"Prova Social Terceiros","hook_principal":"...","script_completo":"...","variacoes_dor":["...","...","..."],"instrucao_avatar":"...","quando_usar":"...","por_que_converte":"...","nivel_conversao":"MUITO ALTO"},
-    {"numero":4,"nome":"E Se Eu Dissesse","hook_principal":"...","script_completo":"...","variacoes_dor":["...","...","..."],"instrucao_avatar":"...","quando_usar":"...","por_que_converte":"...","nivel_conversao":"ALTO"},
-    {"numero":5,"nome":"Tentei Tudo","hook_principal":"...","script_completo":"...","variacoes_dor":["...","...","..."],"instrucao_avatar":"...","quando_usar":"...","por_que_converte":"...","nivel_conversao":"MÁXIMO"}
-  ],
-  "estrategia_teste": {"ordem_teste":"...","volume_por_hook":"...","como_escalar":"...","dica_critica":"..."}
+  "resumo": {"total_analisados":0,"ouro":0,"cavalo":0,"foguete":0,"viavel":0,"ignorar":0}
 }`;
 
-const PROMPT_SHIELD = `Você é especialista em compliance TikTok Shop Brasil.
-Analise o texto e identifique violações, promessas exageradas, alegações médicas, palavras proibidas.
-SCORE: 100=perfeito · 80-99=pequeno ajuste · 60-79=atenção · 40-59=risco · 0-39=ban
+const PROMPT_SHIELD = () => BASE + `
+
+SHIELD v3 — Compliance TikTok Shop BR. Analise em 7 categorias:
+1. Palavras proibidas (remove, cura, elimina, emagrece...)
+2. Redirecionamento externo (Shopee, Amazon, Instagram, link na bio...)
+3. Produtos proibidos (emagrecimento, perda de peso...)
+4. Claims cosméticos indevidos (trata, previne, cura doenças...)
+5. Promessas exageradas (antes/depois, números absolutos...)
+6. Tom médico/clínico
+7. CTA incorreto (não usa "carrinho laranja")
+
+SCORE: 100=perfeito · 80-99=ajuste · 60-79=atenção · 0-59=risco ban
 NÍVEL: VERDE=80+ · AMARELO=60-79 · VERMELHO=0-59
-GRAVIDADE: ALTA=ban · MÉDIA=advertência · BAIXA=risco menor
-JSON EXATO:
+
+JSON:
 {
   "score_seguranca": 85,
   "nivel_risco": "VERDE",
   "aprovado": true,
-  "violacoes": [{"tipo":"...","trecho":"...","gravidade":"ALTA","motivo":"...","sugestao":"..."}],
-  "pontos_positivos": ["...","..."],
+  "violacoes": [
+    {"tipo":"...","trecho":"...","gravidade":"ALTA","sugestao":"..."}
+  ],
+  "pontos_positivos": ["..."],
   "texto_corrigido": "...",
   "resumo": "..."
-}
-RESPONDA APENAS COM JSON PURO, sem markdown, sem backticks.`;
+}`;
 
-// ═══════════════════════════════════════════════════════
+// ───────────────────────────────────────────────────────────────
 // DESIGN
-// ═══════════════════════════════════════════════════════
+// ───────────────────────────────────────────────────────────────
 
 const C = {
-  bg:"#050505", card:"#0d0d0d", card2:"#0a0a0a", border:"#1a1a1a",
-  text:"#f0e8d8", textDim:"#666", textMid:"#999",
-  gold:"#ffd700", goldDim:"#ffd70020",
-  accent:"#ff1493", accentDim:"#ff149320",
-  success:"#00ff88", successDim:"#00ff8820",
-  warning:"#ff9800", warningDim:"#ff980020",
-  info:"#00bfff", infoDim:"#00bfff20",
-  purple:"#a855f7", purpleDim:"#a855f720",
-  blue:"#06b6d4",
+  bg:"#000", card:"#090909", card2:"#111",
+  border:"#1e1e1e", borderHover:"#2a2a2a",
+  text:"#f0ece4", textDim:"#555", textMid:"#888",
+  gold:"#ffd700", goldDim:"#ffd70012",
+  accent:"#ff1493", accentDim:"#ff149312",
+  success:"#00ff88", successDim:"#00ff8812",
+  warning:"#ff9800", warningDim:"#ff980012",
+  info:"#00bfff", infoDim:"#00bfff12",
+  purple:"#a855f7", purpleDim:"#a855f712",
 };
 
-const inp = (extra = {}) => ({
+const inp = (ex={}) => ({
   width:"100%", boxSizing:"border-box", background:C.card2,
-  border:`1px solid ${C.border}`, borderRadius:10, padding:"12px 16px",
-  color:C.text, fontSize:14, fontFamily:"inherit", outline:"none", ...extra,
+  border:`1px solid ${C.border}`, borderRadius:10,
+  padding:"12px 16px", color:C.text, fontSize:14,
+  fontFamily:"inherit", outline:"none", ...ex,
 });
 
-const btn = (disabled = false, cor = C.gold) => ({
-  background: disabled ? C.card2 : cor,
-  border:"none", borderRadius:10, padding:"12px 20px",
-  color: disabled ? C.textDim : "#000", fontSize:13, fontWeight:700,
-  cursor: disabled ? "not-allowed" : "pointer", fontFamily:"inherit",
-  opacity: disabled ? 0.5 : 1, transition:"all 0.2s",
+const btn = (off=false, cor=C.gold) => ({
+  background: off?"#111":cor, border:"none", borderRadius:10,
+  padding:"12px 20px", color: off?C.textDim:"#000",
+  fontSize:13, fontWeight:700, cursor: off?"not-allowed":"pointer",
+  fontFamily:"inherit", opacity: off?0.5:1, transition:"all 0.2s",
+  whiteSpace:"nowrap",
 });
 
-// ═══════════════════════════════════════════════════════
+// ───────────────────────────────────────────────────────────────
 // COMPONENTES
-// ═══════════════════════════════════════════════════════
+// ───────────────────────────────────────────────────────────────
 
-function Badge({ children, color = C.gold }) {
-  return (
-    <span style={{ fontSize:9, color, background:color+"15", border:`1px solid ${color}30`, padding:"3px 10px", borderRadius:20, letterSpacing:2, fontWeight:700, display:"inline-block", marginBottom:10 }}>
+function Badge({children, color=C.gold}){
+  return(
+    <span style={{fontSize:9,color,background:color+"15",border:`1px solid ${color}30`,
+      padding:"3px 10px",borderRadius:20,letterSpacing:2,fontWeight:700,
+      display:"inline-block",marginBottom:8}}>
       {children}
     </span>
   );
 }
 
-function CopyBox({ label, content, id, copied, onCopy, color = C.gold, large = false }) {
-  if (!content) return null;
-  const ok = copied === id;
-  return (
-    <div onClick={() => onCopy(content, id)} style={{ background:color+"08", border:`1px solid ${ok?C.success:color+"30"}`, borderRadius:10, padding:"12px 14px", cursor:"pointer", marginBottom:10, transition:"all 0.2s" }}>
-      <div style={{ fontSize:8, color, letterSpacing:3, marginBottom:6, fontWeight:600 }}>{label}</div>
-      <div style={{ fontSize:large?16:13, fontWeight:large?700:400, lineHeight:1.7, color:C.text }}>{content}</div>
-      <div style={{ fontSize:9, color:ok?C.success:C.textDim, marginTop:8 }}>{ok?"✓ copiado!":"clique para copiar"}</div>
+function CopyBox({label,content,id,copied,onCopy,color=C.gold,large=false}){
+  if(!content)return null;
+  const ok=copied===id;
+  return(
+    <div onClick={()=>onCopy(content,id)} style={{
+      background:color+"08", border:`1px solid ${ok?C.success:color+"25"}`,
+      borderRadius:10, padding:"12px 14px", cursor:"pointer",
+      marginBottom:10, transition:"all 0.2s",
+    }}>
+      <div style={{fontSize:8,color,letterSpacing:3,marginBottom:6,fontWeight:700}}>{label}</div>
+      <div style={{fontSize:large?16:13,fontWeight:large?700:400,lineHeight:1.7,color:C.text,whiteSpace:"pre-wrap"}}>
+        {content}
+      </div>
+      <div style={{fontSize:9,color:ok?C.success:C.textDim,marginTop:8}}>
+        {ok?"✓ copiado!":"clique para copiar"}
+      </div>
     </div>
   );
 }
 
-function EmptyState({ icon, title, sub }) {
-  return (
-    <div style={{ textAlign:"center", padding:"40px 20px", color:C.textDim }}>
-      <div style={{ fontSize:40, marginBottom:12 }}>{icon}</div>
-      <div style={{ fontSize:14, marginBottom:6 }}>{title}</div>
-      <div style={{ fontSize:12 }}>{sub}</div>
+function Empty({icon,title,sub}){
+  return(
+    <div style={{textAlign:"center",padding:"60px 20px",color:C.textDim}}>
+      <div style={{fontSize:48,marginBottom:16}}>{icon}</div>
+      <div style={{fontSize:16,marginBottom:8,color:C.textMid}}>{title}</div>
+      <div style={{fontSize:12}}>{sub}</div>
     </div>
   );
 }
 
-// ═══════════════════════════════════════════════════════
-// APP
-// ═══════════════════════════════════════════════════════
+function ScoreBar({score}){
+  const cor=score>=80?C.success:score>=60?C.warning:C.accent;
+  return(
+    <div style={{marginBottom:16}}>
+      <div style={{display:"flex",justifyContent:"space-between",marginBottom:6}}>
+        <span style={{fontSize:11,color:C.textMid}}>Score de Segurança</span>
+        <span style={{fontSize:14,fontWeight:700,color:cor}}>{score}/100</span>
+      </div>
+      <div style={{height:6,background:C.border,borderRadius:3,overflow:"hidden"}}>
+        <div style={{height:"100%",width:`${score}%`,background:cor,borderRadius:3,transition:"width 0.5s"}}/>
+      </div>
+    </div>
+  );
+}
+// ───────────────────────────────────────────────────────────────
+// MAIN APP
+// ───────────────────────────────────────────────────────────────
 
-export default function TikTokShopGeneratorSupreme() {
-  const [apiKey, setApiKey]               = useState("");
-  const [modelo, setModelo]               = useState("google/gemini-2.5-flash");
-  const [apiStatus, setApiStatus]         = useState(null);
-  const [apiConfigurada, setApiConfigurada] = useState(false);
-  const [mostrarKey, setMostrarKey]       = useState(false);
+export default function UltraConverter(){
 
+  // Config
+  const [provider, setProvider] = useState("openrouter");
+  const [apiKeys, setApiKeys] = useState({openrouter:"",grok:"",gemini:""});
+  const [model, setModel] = useState("google/gemini-2.5-flash");
+  const [apiReady, setApiReady] = useState(false);
+  const [limite, setLimite] = useState(30);
+
+  // Produto
   const [form, setForm] = useState({
-    nome:"", valor:"", categoria:"Beleza e cuidados pessoais",
-    descricao:"", creators:"", copyViral:"",
+    nome:"",valor:"",categoria:"Beleza e cuidados pessoais",
+    descricao:"",keyword:"",copyViral:"",creators:"",
   });
   const [blindador, setBlindador] = useState(true);
+  const [quantidade, setQuantidade] = useState(10);
 
-  const [aba, setAba]             = useState("config");
-  const [loading, setLoading]     = useState(false);
-  const [erro, setErro]           = useState(null);
-  const [resultado, setResultado] = useState(null);
-  const [tipoAtual, setTipoAtual] = useState(null);
-  const [copied, setCopied]       = useState(null);
+  // UI
+  const [aba, setAba] = useState("config");
+  const [loading, setLoading] = useState(false);
+  const [loadingTipo, setLoadingTipo] = useState("");
+  const [erro, setErro] = useState(null);
+  const [resultados, setResultados] = useState({});
+  const [copied, setCopied] = useState(null);
 
-  const [scriptVencedor, setScriptVencedor]   = useState("");
-  const [numVariacoes, setNumVariacoes]       = useState(20);
-  const [loadingEscala, setLoadingEscala]     = useState(false);
-  const [resultadoEscala, setResultadoEscala] = useState(null);
+  // Escala
+  const [scriptVencedor, setScriptVencedor] = useState("");
+  const [qtdEscala, setQtdEscala] = useState(20);
+  const [loadingEscala, setLoadingEscala] = useState(false);
 
-  const [dadosKalodata, setDadosKalodata]   = useState("");
-  const [loadingAgent, setLoadingAgent]     = useState(false);
-  const [resultadoAgent, setResultadoAgent] = useState(null);
+  // Agent
+  const [dadosKalodata, setDadosKalodata] = useState("");
+  const [loadingAgent, setLoadingAgent] = useState(false);
 
-  const [loadingMeta, setLoadingMeta]     = useState(false);
-  const [resultadoMeta, setResultadoMeta] = useState(null);
-  const [abaMetaAtiva, setAbaMetaAtiva]   = useState(0);
+  // Shield
+  const [textoShield, setTextoShield] = useState("");
+  const [loadingShield, setLoadingShield] = useState(false);
 
-  const [textoShield, setTextoShield]       = useState("");
-  const [loadingShield, setLoadingShield]   = useState(false);
-  const [resultadoShield, setResultadoShield] = useState(null);
-
-  useEffect(() => {
-    const saved = localStorage.getItem("tiktok_supreme_config");
-    if (saved) {
-      try {
-        const config = JSON.parse(saved);
-        setApiKey(config.apiKey || "");
-        setModelo(config.modelo || "google/gemini-2.5-flash");
-        modeloAtual = config.modelo || "google/gemini-2.5-flash";
-        apiKeyAtual = config.apiKey || "";
-        if (config.apiKey) setApiConfigurada(true);
-      } catch {}
+  // Load config salva
+  useEffect(()=>{
+    const saved = localStorage.getItem("ultra_v1");
+    if(saved){
+      try{
+        const c = JSON.parse(saved);
+        setProvider(c.provider||"openrouter");
+        setApiKeys(c.apiKeys||{openrouter:"",grok:"",gemini:""});
+        setModel(c.model||"google/gemini-2.5-flash");
+        setLimite(c.limite||30);
+        if(c.apiKeys?.[c.provider||"openrouter"]) setApiReady(true);
+      }catch{}
     }
-  }, []);
+  },[]);
 
-  const onCopy = (text, id) => {
-    navigator.clipboard.writeText(text).catch(() => {
-      const el = document.createElement("textarea");
-      el.value = text; document.body.appendChild(el);
-      el.select(); document.execCommand("copy");
+  const salvarConfig = () => {
+    const key = apiKeys[provider];
+    if(!key?.trim()){setErro("Insira a API Key!");return;}
+    localStorage.setItem("ultra_v1",JSON.stringify({provider,apiKeys,model,limite}));
+    setApiReady(true);
+    setErro(null);
+    setAba("produto");
+  };
+
+  const onCopy = (text,id) => {
+    navigator.clipboard.writeText(text).catch(()=>{
+      const el=document.createElement("textarea");
+      el.value=text;document.body.appendChild(el);
+      el.select();document.execCommand("copy");
       document.body.removeChild(el);
     });
     setCopied(id);
-    setTimeout(() => setCopied(null), 1500);
+    setTimeout(()=>setCopied(null),1500);
   };
 
-  const conectar = async () => {
-    if (!apiKey.trim()) { setApiStatus({ success:false, message:"Cole sua API Key!" }); return; }
-    setApiStatus(null);
-    const res = await testarConexao(apiKey, modelo);
-    setApiStatus(res);
-    if (res.success) {
-      modeloAtual = modelo;
-      apiKeyAtual = apiKey;
-      setApiConfigurada(true);
-      localStorage.setItem("tiktok_supreme_config", JSON.stringify({ apiKey, modelo }));
-    }
+  const getKey = () => apiKeys[provider]||"";
+
+  const buildUser = () => {
+    const p = [];
+    p.push(`Produto: ${form.nome}`);
+    p.push(`Valor: R$${form.valor}`);
+    p.push(`Categoria: ${form.categoria}`);
+    p.push(`Descrição: ${form.descricao}`);
+    if(form.keyword) p.push(`Keyword SEO (Creator Search Insights): ${form.keyword}`);
+    if(form.creators) p.push(`Dados Creators/Kalodata: ${form.creators}`);
+    if(form.copyViral) p.push(`📺 COPY VIRAL (modele a estrutura):\n"${form.copyViral}"`);
+    return p.join("\n");
   };
 
   const gerar = async (tipo) => {
-    if (!apiConfigurada) { setErro("Configure a API primeiro!"); setAba("config"); return; }
-    if (!form.nome || !form.valor || !form.descricao) { setErro("Preencha nome, valor e descrição!"); return; }
-    setErro(null); setLoading(true); setResultado(null);
-    const prompts = { hooks:PROMPT_HOOKS, roteiros:PROMPT_ROTEIROS, coringa:PROMPT_CORINGA };
-    const system = prompts[tipo] + (blindador ? "\n\n" + BLINDADOR_ULTRA : "");
-    const user = `Produto: ${form.nome}\nValor: R$${form.valor}\nCategoria: ${form.categoria}\nDescrição: ${form.descricao}${form.creators?`\n\nCreators:\n${form.creators}`:""}${form.copyViral?`\n\n📺 COPY VIRAL DE REFERÊNCIA:\n"${form.copyViral}"\n\nMODELE a estrutura e padrões desta copy nos scripts.`:""}`;
-    try {
-      const data = await callOpenRouterJSON(system, user);
-      setResultado(data); setTipoAtual(tipo); setAba(tipo);
-    } catch(e) { setErro(e.message); }
-    setLoading(false);
+    if(!apiReady){setErro("Configure a API primeiro!");setAba("config");return;}
+    if(!form.nome||!form.valor||!form.descricao){setErro("Preencha nome, valor e descrição!");return;}
+    setErro(null);setLoading(true);setLoadingTipo(tipo);
+
+    const prompts = {
+      pov:     PROMPT_POV(limite,quantidade),
+      coringa: PROMPT_CORINGA(limite,quantidade),
+      hooks:   PROMPT_HOOKS(limite,quantidade),
+      villain: PROMPT_VILLAIN(limite,quantidade),
+      meta:    PROMPT_META(limite,quantidade),
+      veo3:    PROMPT_VEO(limite,quantidade),
+    };
+
+    const system = prompts[tipo]+(blindador?"\n\n"+BLINDADOR:"");
+
+    try{
+      const data = await callJSON(provider,getKey(),model,system,buildUser());
+      setResultados(prev=>({...prev,[tipo]:data}));
+      setAba(tipo);
+    }catch(e){setErro(e.message);}
+
+    setLoading(false);setLoadingTipo("");
   };
 
   const gerarEscala = async () => {
-    if (!apiConfigurada) { setErro("Configure a API primeiro!"); setAba("config"); return; }
-    if (!scriptVencedor.trim()) { setErro("Cole o script vencedor!"); return; }
-    setErro(null); setLoadingEscala(true); setResultadoEscala(null);
-    const system = PROMPT_ESCALA + (blindador ? "\n\n" + BLINDADOR_ULTRA : "");
-    const user = `SCRIPT VENCEDOR:\n"${scriptVencedor}"\n${form.copyViral?`\nCOPY VIRAL:\n"${form.copyViral}"\n`:""}\nGere ${numVariacoes} variações científicas.`;
-    try {
-      const data = await callOpenRouterJSON(system, user, 0.9);
-      setResultadoEscala(data); setAba("escala");
-    } catch(e) { setErro(e.message); }
+    if(!apiReady){setErro("Configure a API!");return;}
+    if(!scriptVencedor.trim()){setErro("Cole o script vencedor!");return;}
+    setErro(null);setLoadingEscala(true);
+    const system = PROMPT_ESCALA(limite,qtdEscala)+(blindador?"\n\n"+BLINDADOR:"");
+    const user = `SCRIPT VENCEDOR:\n"${scriptVencedor}"\n\nProduto: ${form.nome}\nCategoria: ${form.categoria}`;
+    try{
+      const data = await callJSON(provider,getKey(),model,system,user);
+      setResultados(prev=>({...prev,escala:data}));
+      setAba("escala");
+    }catch(e){setErro(e.message);}
     setLoadingEscala(false);
   };
 
-  const analisarKalodata = async () => {
-    if (!apiConfigurada) { setErro("Configure a API primeiro!"); setAba("config"); return; }
-    if (!dadosKalodata.trim()) { setErro("Cole os dados do Kalodata!"); return; }
-    setErro(null); setLoadingAgent(true); setResultadoAgent(null);
-    try {
-      const data = await callOpenRouterJSON(
-        PROMPT_AGENT_FINDER,
-        `DADOS KALODATA:\n\n${dadosKalodata}\n\nAnalise TODOS os produtos, calcule scores e retorne JSON estruturado.`,
-        0.7
-      );
-      setResultadoAgent(data); setAba("agent");
-    } catch(e) { setErro(e.message); }
+  const gerarAgent = async () => {
+    if(!apiReady){setErro("Configure a API!");return;}
+    if(!dadosKalodata.trim()){setErro("Cole os dados do Kalodata!");return;}
+    setErro(null);setLoadingAgent(true);
+    try{
+      const data = await callJSON(provider,getKey(),model,PROMPT_AGENT(),
+        `DADOS KALODATA:\n\n${dadosKalodata}\n\nAnalise TODOS os produtos e retorne JSON.`,0.7);
+      setResultados(prev=>({...prev,agent:data}));
+      setAba("agent");
+    }catch(e){setErro(e.message);}
     setLoadingAgent(false);
   };
 
-  const usarProduto = (produto) => {
-    setForm({
-      ...form,
-      nome: produto.nome,
-      valor: produto.valor?.toString() || "",
-      categoria: produto.categoria || "Beleza e cuidados pessoais",
-      descricao: produto.descricao_produto || "",
-      creators: produto.creators_data || "",
-    });
-    setAba("produto");
-    window.scrollTo({ top:0, behavior:"smooth" });
-  };
-
-  const gerarMetaAds = async () => {
-    if (!apiConfigurada) { setErro("Configure a API primeiro!"); setAba("config"); return; }
-    if (!form.nome || !form.descricao) { setErro("Preencha nome e descrição!"); return; }
-    setErro(null); setLoadingMeta(true); setResultadoMeta(null);
-    const user = `Produto: ${form.nome}\nValor: R$${form.valor}\nCategoria: ${form.categoria}\nDescrição: ${form.descricao}\n\nGere os 5 hooks Meta Ads adaptados para este produto!`;
-    try {
-      const data = await callOpenRouterJSON(PROMPT_META_ADS, user, 0.85);
-      setResultadoMeta(data); setAbaMetaAtiva(0);
-    } catch(e) { setErro(e.message); }
-    setLoadingMeta(false);
-  };
-
-  const analisarShield = async () => {
-    if (!apiConfigurada) { setErro("Configure a API primeiro!"); setAba("config"); return; }
-    if (!textoShield.trim()) { setErro("Cole o texto para analisar!"); return; }
-    setErro(null); setLoadingShield(true); setResultadoShield(null);
-    try {
-      const data = await callOpenRouterJSON(PROMPT_SHIELD, `Analise este texto para TikTok Shop Brasil:\n\n"${textoShield}"`);
-      setResultadoShield(data);
-    } catch(e) { setErro(e.message); }
+  const gerarShield = async () => {
+    if(!apiReady){setErro("Configure a API!");return;}
+    if(!textoShield.trim()){setErro("Cole o texto!");return;}
+    setErro(null);setLoadingShield(true);
+    try{
+      const data = await callJSON(provider,getKey(),model,PROMPT_SHIELD(),
+        `Analise este texto para TikTok Shop Brasil:\n\n"${textoShield}"`);
+      setResultados(prev=>({...prev,shield:data}));
+    }catch(e){setErro(e.message);}
     setLoadingShield(false);
   };
 
+  const usarProduto = (p) => {
+    setForm(prev=>({
+      ...prev,
+      nome:p.nome||"",
+      valor:p.valor?.toString()||"",
+      categoria:p.categoria||"Beleza e cuidados pessoais",
+      descricao:p.descricao_produto||"",
+      creators:p.creators_data||"",
+    }));
+    setAba("produto");
+    window.scrollTo({top:0,behavior:"smooth"});
+  };
+
+  const formatVeo = (s) =>
+    `ugc influencer falando pt brasil\nEmotion/Tone: [${s.tom_emocional||"natural"}]\nela diz:\n${s.script}\nPrompt negativo: ${s.prompt_negativo||"sem texto, sem legendas, sem logos, sem distorções, sem mudanças de roupa, sem distorção facial, sem mudanças no fundo, sem movimentos bruscos"}`;
+
+  const copiarTodosVeo = () => {
+    const sc = resultados.veo3?.scripts_veo;
+    if(!sc)return;
+    onCopy(sc.map(s=>formatVeo(s)).join("\n\n---\n\n"),"todos_veo");
+  };
+
+  const prov = PROVIDERS[provider];
+
   const ABAS = [
-    { id:"config",   label:"⚙️ Config",   cor:C.gold   },
-    { id:"agent",    label:"🔍 Agent",    cor:C.purple },
-    { id:"produto",  label:"📦 Produto",  cor:C.gold   },
-    { id:"meta",     label:"📘 Meta Ads", cor:C.info   },
-    { id:"hooks",    label:"🎣 Hooks",    cor:C.gold   },
-    { id:"roteiros", label:"🎬 Roteiros", cor:C.gold   },
-    { id:"coringa",  label:"🔥 Coringa",  cor:C.accent },
-    { id:"escala",   label:"🚀 Escala",   cor:C.info   },
-    { id:"shield",   label:"🛡️ Shield",   cor:C.success},
+    {id:"config", label:"⚙️ Config",  cor:C.info},
+    {id:"agent",  label:"🔍 Agent",   cor:C.purple},
+    {id:"produto",label:"📦 Produto", cor:C.gold},
+    {id:"pov",    label:"📱 POV 10S", cor:C.gold},
+    {id:"coringa",label:"🔥 Coringa", cor:C.accent},
+    {id:"hooks",  label:"🎣 Hooks",   cor:C.gold},
+    {id:"villain",label:"🎬 Villain", cor:C.gold},
+    {id:"meta",   label:"💰 Meta",    cor:C.info},
+    {id:"veo3",   label:"🚀 Veo 3",   cor:C.purple},
+    {id:"escala", label:"📊 Escala",  cor:C.warning},
+    {id:"shield", label:"🛡️ Shield",  cor:C.success},
   ];
 
-  const corRiscoShield = resultadoShield?.nivel_risco==="VERDE"?C.success:resultadoShield?.nivel_risco==="AMARELO"?C.warning:C.accent;
-  const scoreColorShield = !resultadoShield?C.textDim:resultadoShield.score_seguranca>=80?C.success:resultadoShield.score_seguranca>=60?C.warning:C.accent;
-
-  return (
-    <div style={{ minHeight:"100vh", background:C.bg, fontFamily:"'Inter', sans-serif", color:C.text }}>
+  return(
+    <div style={{minHeight:"100vh",background:C.bg,fontFamily:"'Inter',sans-serif",color:C.text}}>
 
       {/* HEADER */}
-      <div style={{ borderBottom:`1px solid ${C.border}`, background:`linear-gradient(180deg,#0f0a05 0%,${C.bg} 100%)`, padding:"20px" }}>
-        <div style={{ maxWidth:1200, margin:"0 auto" }}>
-          <div style={{ fontSize:9, letterSpacing:5, color:C.gold, marginBottom:6, fontWeight:700 }}>🔥 SISTEMA HÍBRIDO SUPREME</div>
-          <h1 style={{ fontSize:28, fontWeight:900, margin:"0 0 4px", background:`linear-gradient(135deg,${C.gold},${C.accent})`, WebkitBackgroundClip:"text", WebkitTextFillColor:"transparent" }}>
-            TikTok Shop Generator SUPREME
+      <div style={{background:`linear-gradient(180deg,#0a0500,${C.bg})`,borderBottom:`1px solid ${C.border}`,padding:"24px 20px"}}>
+        <div style={{maxWidth:1200,margin:"0 auto"}}>
+          <div style={{fontSize:9,letterSpacing:6,color:C.gold,marginBottom:6,fontWeight:700}}>
+            ⚡ MODO ULTRA CONVERTER MILHÕES
+          </div>
+          <h1 style={{fontSize:30,fontWeight:900,margin:"0 0 6px",background:`linear-gradient(135deg,${C.gold},${C.accent})`,WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent"}}>
+            TikTok Shop Ultra Generator
           </h1>
-          <p style={{ fontSize:11, color:C.textDim, margin:0 }}>OpenRouter · Agent Finder · Meta Ads · Shield · 6 Camadas · Copy Viral</p>
-          {apiConfigurada&&(
-            <div style={{ marginTop:12, display:"inline-flex", alignItems:"center", gap:8, background:C.successDim, border:`1px solid ${C.success}30`, borderRadius:20, padding:"5px 14px", fontSize:11, color:C.success }}>
-              <div style={{ width:6, height:6, borderRadius:"50%", background:C.success }} />
-              Sistema Ativo · {MODELOS_DISPONIVEIS[modelo]?.split("(")[0] || modelo}
-            </div>
+          <p style={{fontSize:11,color:C.textDim,margin:"0 0 14px"}}>
+            OpenRouter · Grok · Gemini · POV 10S · Coringa · Hooks 12 Padrões · Villain · Meta · Veo3 · Agent · Shield
+          </p>
+
+          {/* MODO SELECTOR */}
+          <div style={{display:"inline-flex",alignItems:"center",gap:6,background:C.card,border:`1px solid ${C.border}`,borderRadius:30,padding:"6px 8px"}}>
+            <span style={{fontSize:10,color:C.textMid,marginLeft:8,marginRight:4}}>⚡ MODO:</span>
+            {[30,40].map(n=>(
+              <button key={n} onClick={()=>setLimite(n)} style={{
+                background:limite===n?C.gold:"transparent",
+                border:"none",borderRadius:20,padding:"6px 18px",
+                color:limite===n?"#000":C.textMid,
+                fontSize:13,fontWeight:limite===n?800:400,
+                cursor:"pointer",fontFamily:"inherit",transition:"all 0.2s",
+              }}>
+                {n} palavras
+                {n===30&&<span style={{fontSize:9,marginLeft:4,opacity:0.8}}>Veo3</span>}
+                {n===40&&<span style={{fontSize:9,marginLeft:4,opacity:0.8}}>Grok</span>}
+              </button>
+            ))}
+          </div>
+
+          {apiReady&&(
+            <span style={{marginLeft:12,display:"inline-flex",alignItems:"center",gap:8,background:C.successDim,border:`1px solid ${C.success}30`,borderRadius:20,padding:"5px 14px",fontSize:11,color:C.success}}>
+              <span style={{width:6,height:6,borderRadius:"50%",background:C.success,display:"inline-block"}}/>
+              {prov?.name} · {prov?.models.find(m=>m.id===model)?.name?.split("(")[0]?.trim()}
+            </span>
           )}
         </div>
       </div>
 
       {/* TABS */}
-      <div style={{ borderBottom:`1px solid ${C.border}`, background:C.card, position:"sticky", top:0, zIndex:100 }}>
-        <div style={{ maxWidth:1200, margin:"0 auto", display:"flex", overflowX:"auto", padding:"0 20px" }}>
+      <div style={{borderBottom:`1px solid ${C.border}`,background:C.card,position:"sticky",top:0,zIndex:100}}>
+        <div style={{maxWidth:1200,margin:"0 auto",display:"flex",overflowX:"auto",padding:"0 20px"}}>
           {ABAS.map(a=>{
-            const ativo = aba===a.id;
-            return (
-              <button key={a.id} onClick={()=>setAba(a.id)} style={{ background:"none", border:"none", borderBottom:`2px solid ${ativo?a.cor:"transparent"}`, padding:"12px 16px", cursor:"pointer", fontFamily:"inherit", color:ativo?a.cor:C.textDim, fontSize:13, fontWeight:ativo?700:400, whiteSpace:"nowrap", transition:"all 0.2s" }}>
+            const ativo=aba===a.id;
+            return(
+              <button key={a.id} onClick={()=>setAba(a.id)} style={{
+                background:"none",border:"none",
+                borderBottom:`2px solid ${ativo?a.cor:"transparent"}`,
+                padding:"12px 14px",cursor:"pointer",fontFamily:"inherit",
+                color:ativo?a.cor:C.textDim,fontSize:12,
+                fontWeight:ativo?700:400,whiteSpace:"nowrap",transition:"all 0.2s",
+              }}>
                 {a.label}
               </button>
             );
@@ -564,188 +908,237 @@ export default function TikTokShopGeneratorSupreme() {
         </div>
       </div>
 
-      {/* CONTENT */}
-      <div style={{ maxWidth:1200, margin:"0 auto", padding:"30px 20px" }}>
+      {/* CONTEÚDO */}
+      <div style={{maxWidth:1200,margin:"0 auto",padding:"30px 20px"}}>
 
         {/* CONFIG */}
         {aba==="config"&&(
-          <div style={{ background:C.card, border:`1px solid ${C.border}`, borderRadius:16, overflow:"hidden", maxWidth:600, margin:"0 auto" }}>
-            <div style={{ padding:"20px 24px", background:`linear-gradient(135deg,${C.gold}08,transparent)`, borderBottom:`1px solid ${C.border}` }}>
-              <Badge>⚙️ CONFIGURAÇÃO</Badge>
-              <div style={{ fontSize:18, fontWeight:700, color:C.text }}>OpenRouter API</div>
-              <div style={{ fontSize:12, color:C.textDim, marginTop:4 }}>Grátis · Múltiplos modelos · Chave salva automaticamente</div>
-            </div>
-            <div style={{ padding:24 }}>
-              <div style={{ marginBottom:20 }}>
-                <div style={{ fontSize:11, color:C.textMid, letterSpacing:2, marginBottom:10 }}>🔑 API KEY</div>
-                <div style={{ position:"relative" }}>
-                  <input type={mostrarKey?"text":"password"} style={inp({paddingRight:48})} placeholder="sk-or-v1-..." value={apiKey} onChange={e=>{setApiKey(e.target.value);setApiStatus(null);}} />
-                  <button onClick={()=>setMostrarKey(!mostrarKey)} style={{ position:"absolute", right:14, top:"50%", transform:"translateY(-50%)", background:"none", border:"none", cursor:"pointer", fontSize:16, color:C.textMid, padding:0 }}>
-                    {mostrarKey?"🙈":"👁️"}
+          <div style={{maxWidth:600,margin:"0 auto"}}>
+            <Badge color={C.info}>⚙️ CONFIGURAÇÃO</Badge>
+            <div style={{fontSize:22,fontWeight:800,marginBottom:24}}>Conectar API</div>
+
+            {/* Provider */}
+            <div style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:14,padding:20,marginBottom:16}}>
+              <div style={{fontSize:10,color:C.textMid,letterSpacing:2,marginBottom:12}}>1. ESCOLHA O PROVIDER</div>
+              <div style={{display:"grid",gap:8}}>
+                {Object.entries(PROVIDERS).map(([id,p])=>(
+                  <button key={id} onClick={()=>{setProvider(id);setModel(p.models[0].id);}} style={{
+                    background:provider===id?C.gold+"12":C.card2,
+                    border:`1px solid ${provider===id?C.gold+"60":C.border}`,
+                    borderRadius:10,padding:"14px 16px",cursor:"pointer",
+                    fontFamily:"inherit",textAlign:"left",
+                    display:"flex",alignItems:"center",justifyContent:"space-between",
+                    transition:"all 0.15s",
+                  }}>
+                    <div>
+                      <div style={{fontSize:14,color:provider===id?C.gold:C.text,fontWeight:provider===id?700:400}}>{p.name}</div>
+                      <div style={{fontSize:11,color:C.textDim,marginTop:3}}>
+                        {p.free?"✅ Tem opções grátis":"💰 Pago"} ·{" "}
+                        <a href={p.keyUrl} target="_blank" rel="noreferrer" style={{color:C.info,textDecoration:"none"}}>
+                          Pegar chave →
+                        </a>
+                      </div>
+                    </div>
+                    {provider===id&&<div style={{width:8,height:8,borderRadius:"50%",background:C.gold,flexShrink:0}}/>}
                   </button>
-                </div>
-                <a href="https://openrouter.ai/settings/keys" target="_blank" rel="noreferrer" style={{ fontSize:11, color:C.info, textDecoration:"none", display:"block", marginTop:8 }}>
-                  → Pegar chave gratuita no OpenRouter
-                </a>
+                ))}
               </div>
-              <div style={{ marginBottom:24 }}>
-                <div style={{ fontSize:11, color:C.textMid, letterSpacing:2, marginBottom:10 }}>🤖 MODELO</div>
-                <div style={{ display:"grid", gap:8 }}>
-                  {Object.entries(MODELOS_DISPONIVEIS).map(([id,label])=>(
-                    <button key={id} onClick={()=>setModelo(id)} style={{ background:modelo===id?C.gold+"12":C.card2, border:`1px solid ${modelo===id?C.gold+"60":C.border}`, borderRadius:10, padding:"12px 16px", cursor:"pointer", fontFamily:"inherit", textAlign:"left", display:"flex", alignItems:"center", justifyContent:"space-between", transition:"all 0.15s" }}>
-                      <span style={{ fontSize:13, color:modelo===id?C.gold:C.textMid }}>{label}</span>
-                      {modelo===id&&<div style={{ width:8, height:8, borderRadius:"50%", background:C.gold }} />}
-                    </button>
-                  ))}
-                </div>
-              </div>
-              {apiStatus&&(
-                <div style={{ marginBottom:16, padding:"12px 16px", background:apiStatus.success?C.successDim:C.accentDim, border:`1px solid ${apiStatus.success?C.success+"50":C.accent+"50"}`, borderRadius:10, fontSize:13, color:apiStatus.success?C.success:C.accent }}>
-                  {apiStatus.success?"✅ Conectado com sucesso!":` ❌ ${apiStatus.message}`}
-                </div>
-              )}
-              <button onClick={conectar} style={{ ...btn(false), width:"100%", padding:"14px", fontSize:14 }}>🔌 TESTAR E CONECTAR</button>
-              {apiConfigurada&&(
-                <div style={{ marginTop:16, padding:"12px 16px", background:C.successDim, border:`1px solid ${C.success}30`, borderRadius:10, fontSize:12, color:C.success, textAlign:"center" }}>
-                  ✅ Sistema ativo! Use as abas para gerar conteúdo 🚀
-                </div>
-              )}
             </div>
+
+            {/* Modelo */}
+            <div style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:14,padding:20,marginBottom:16}}>
+              <div style={{fontSize:10,color:C.textMid,letterSpacing:2,marginBottom:12}}>2. ESCOLHA O MODELO</div>
+              <select style={inp()} value={model} onChange={e=>setModel(e.target.value)}>
+                {prov?.models.map(m=>(
+                  <option key={m.id} value={m.id}>{m.name}</option>
+                ))}
+              </select>
+            </div>
+
+            {/* API Key */}
+            <div style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:14,padding:20,marginBottom:16}}>
+              <div style={{fontSize:10,color:C.textMid,letterSpacing:2,marginBottom:12}}>
+                3. API KEY — {prov?.name}
+              </div>
+              <input
+                type="password"
+                style={inp()}
+                placeholder="Cole sua API Key aqui..."
+                value={apiKeys[provider]||""}
+                onChange={e=>setApiKeys(prev=>({...prev,[provider]:e.target.value}))}
+              />
+              <div style={{fontSize:11,color:C.textDim,marginTop:8}}>
+                🔒 Salva só no seu navegador (localStorage)
+              </div>
+            </div>
+
+            {/* Modo Ultra */}
+            <div style={{background:C.card,border:`1px solid ${C.gold}30`,borderRadius:14,padding:20,marginBottom:16}}>
+              <div style={{fontSize:10,color:C.gold,letterSpacing:2,marginBottom:12}}>4. MODO ULTRA — LIMITE DE PALAVRAS</div>
+              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
+                {[
+                  {n:30,desc:"Ideal para Veo 3 · Reels 8-10s · Loop perfeito"},
+                  {n:40,desc:"Ideal para Grok · Reels 12-15s · Mais contexto"},
+                ].map(({n,desc})=>(
+                  <button key={n} onClick={()=>setLimite(n)} style={{
+                    background:limite===n?C.gold+"20":C.card2,
+                    border:`2px solid ${limite===n?C.gold:C.border}`,
+                    borderRadius:10,padding:"16px 12px",
+                    cursor:"pointer",fontFamily:"inherit",
+                    color:limite===n?C.gold:C.textMid,textAlign:"center",
+                    transition:"all 0.2s",
+                  }}>
+                    <div style={{fontSize:24,fontWeight:900}}>{n}</div>
+                    <div style={{fontSize:10,marginTop:4}}>palavras</div>
+                    <div style={{fontSize:9,color:C.textDim,marginTop:4,lineHeight:1.4}}>{desc}</div>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {erro&&(
+              <div style={{padding:"12px 16px",background:C.accentDim,border:`1px solid ${C.accent}40`,borderRadius:10,fontSize:13,color:C.accent,marginBottom:16}}>
+                ⚠️ {erro}
+              </div>
+            )}
+
+            <button onClick={salvarConfig} style={{...btn(false,C.gold),width:"100%",padding:"16px",fontSize:15}}>
+              🚀 ATIVAR SISTEMA
+            </button>
           </div>
         )}
 
         {/* AGENT FINDER */}
         {aba==="agent"&&(
           <div>
-            <div style={{ marginBottom:24 }}>
-              <Badge color={C.purple}>🔍 AGENT FINDER 2.0</Badge>
-              <div style={{ fontSize:22, fontWeight:800, color:C.text }}>Produto Vencedor Kalodata</div>
-              <div style={{ fontSize:13, color:C.textDim, marginTop:6 }}>Score 0-100 · ROI · Path R$10k · Auto-fill produto</div>
-            </div>
+            <Badge color={C.purple}>🔍 AGENT FINDER 2.0</Badge>
+            <div style={{fontSize:22,fontWeight:800,marginBottom:6}}>Produto Vencedor Kalodata</div>
+            <div style={{fontSize:13,color:C.textDim,marginBottom:24}}>Score 0-100 · ROI · Path R$10k · Auto-fill produto</div>
 
-            <div style={{ background:C.card, border:`1px solid ${C.purple}20`, borderRadius:14, padding:16, marginBottom:20 }}>
-              <div style={{ fontSize:11, color:C.purple, letterSpacing:2, marginBottom:10 }}>📋 COMO USAR</div>
-              {["1️⃣ Acesse o Kalodata e filtre os produtos","2️⃣ Selecione tudo (Ctrl+A) e copie (Ctrl+C)","3️⃣ Cole aqui embaixo (Ctrl+V)","4️⃣ Clique em Analisar e use o botão 🚀 USAR ESTE PRODUTO"].map((t,i)=>(
-                <div key={i} style={{ fontSize:12, color:C.textMid, marginBottom:6 }}>{t}</div>
-              ))}
-            </div>
-
-            <div style={{ background:C.card, border:`1px solid ${C.border}`, borderRadius:16, padding:24, marginBottom:20 }}>
-              <textarea style={inp({ minHeight:150, resize:"vertical", fontSize:12, fontFamily:"monospace" })} placeholder="Cole os dados do Kalodata aqui — qualquer formato funciona!" value={dadosKalodata} onChange={e=>{setDadosKalodata(e.target.value);setErro(null);}} />
-              {dadosKalodata&&<div style={{ marginTop:4, fontSize:10, color:C.textDim }}>{dadosKalodata.length} caracteres</div>}
-              {erro&&<div style={{ marginTop:10, padding:"10px 14px", background:C.accentDim, border:`1px solid ${C.accent}40`, borderRadius:8, fontSize:12, color:C.accent }}>⚠️ {erro}</div>}
-              <div style={{ display:"flex", gap:12, alignItems:"center", marginTop:14 }}>
-                <button onClick={analisarKalodata} disabled={loadingAgent||!dadosKalodata.trim()} style={btn(loadingAgent||!dadosKalodata.trim(), C.purple)}>
-                  {loadingAgent?"⟳ Analisando...":"🔍 Analisar Produtos"}
-                </button>
-                {loadingAgent&&<div style={{ fontSize:11, color:C.textDim }}>Calculando scores e ROI...</div>}
+            <div style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:14,padding:20,marginBottom:20}}>
+              <div style={{fontSize:11,color:C.textMid,marginBottom:10}}>
+                📋 Como usar: Copie tudo do Kalodata (Ctrl+A → Ctrl+C) e cole aqui:
               </div>
+              <textarea
+                style={inp({minHeight:160,resize:"vertical",fontFamily:"monospace",fontSize:12})}
+                placeholder="Cole os dados do Kalodata aqui (qualquer formato)..."
+                value={dadosKalodata}
+                onChange={e=>{setDadosKalodata(e.target.value);setErro(null);}}
+              />
+              {erro&&<div style={{marginTop:10,fontSize:12,color:C.accent}}>⚠️ {erro}</div>}
+              <button onClick={gerarAgent} disabled={loadingAgent||!dadosKalodata.trim()}
+                style={{...btn(loadingAgent||!dadosKalodata.trim(),C.purple),marginTop:14}}>
+                {loadingAgent?"⟳ Analisando...":"🔍 Analisar Produtos"}
+              </button>
             </div>
 
-            {resultadoAgent&&(
+            {resultados.agent&&(
               <div>
-                {/* RESUMO */}
-                <div style={{ background:C.card, border:`1px solid ${C.purple}40`, borderRadius:14, padding:20, marginBottom:20 }}>
-                  <div style={{ fontSize:11, color:C.purple, letterSpacing:2, marginBottom:12 }}>📊 RESUMO DA ANÁLISE</div>
-                  <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fit,minmax(100px,1fr))", gap:12 }}>
-                    {[
-                      ["Total",resultadoAgent.resumo.total_analisados,C.text],
-                      ["🏆 Ouro",resultadoAgent.resumo.ouro,"#ffd700"],
-                      ["🔥 Cavalo",resultadoAgent.resumo.cavalo,"#ff6b35"],
-                      ["💥 Foguete",resultadoAgent.resumo.foguete,C.accent],
-                      ["✅ Viável",resultadoAgent.resumo.viavel,C.success],
-                      ["🔴 Ignorar",resultadoAgent.resumo.ignorar,C.textDim],
-                    ].map(([l,v,c])=>(
-                      <div key={l}>
-                        <div style={{ fontSize:10, color:C.textDim }}>{l}</div>
-                        <div style={{ fontSize:20, fontWeight:700, color:c }}>{v}</div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                {/* TOP 3 */}
-                <div style={{ background:C.card, border:`2px solid ${C.gold}40`, borderRadius:14, padding:20, marginBottom:20 }}>
-                  <div style={{ fontSize:11, color:C.gold, letterSpacing:2, marginBottom:12 }}>🏆 TOP 3 PRIORIDADES</div>
-                  {resultadoAgent.top_3?.map((t,i)=>(
-                    <div key={i} style={{ background:C.card2, border:`1px solid ${C.border}`, borderRadius:10, padding:12, marginBottom:i<2?10:0, display:"flex", justifyContent:"space-between", alignItems:"center" }}>
-                      <div>
-                        <span style={{ fontSize:18, fontWeight:700, color:C.gold }}>#{t.posicao}</span>
-                        <span style={{ fontSize:14, fontWeight:600, marginLeft:10, color:C.text }}>{t.nome}</span>
-                      </div>
-                      <div style={{ display:"flex", gap:8, alignItems:"center" }}>
-                        <div style={{ fontSize:11, color:C.textDim }}>{t.recomendacao}</div>
-                        <div style={{ fontSize:14, fontWeight:700, color:C.success, background:C.successDim, padding:"4px 10px", borderRadius:6 }}>{t.score}/100</div>
-                      </div>
+                {/* Resumo */}
+                <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(90px,1fr))",gap:10,marginBottom:20}}>
+                  {[
+                    ["Total",resultados.agent.resumo?.total_analisados,C.text],
+                    ["🏆 Ouro",resultados.agent.resumo?.ouro,C.gold],
+                    ["🔥 Cavalo",resultados.agent.resumo?.cavalo,"#ff6b35"],
+                    ["💥 Foguete",resultados.agent.resumo?.foguete,C.accent],
+                    ["✅ Viável",resultados.agent.resumo?.viavel,C.success],
+                    ["🔴 Ignorar",resultados.agent.resumo?.ignorar,C.textDim],
+                  ].map(([l,v,c])=>(
+                    <div key={l} style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:10,padding:14,textAlign:"center"}}>
+                      <div style={{fontSize:10,color:C.textDim,marginBottom:4}}>{l}</div>
+                      <div style={{fontSize:22,fontWeight:700,color:c}}>{v??0}</div>
                     </div>
                   ))}
                 </div>
 
-                {/* PRODUTOS */}
-                {resultadoAgent.produtos?.map((p,i)=>{
-                  const corScore = p.score>=90?C.gold:p.score>=75?"#ff6b35":p.score>=60?C.accent:C.textDim;
-                  return (
-                    <div key={i} style={{ background:C.card, border:`2px solid ${corScore}40`, borderRadius:14, padding:20, marginBottom:16 }}>
-                      <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:12 }}>
+                {/* Top 3 */}
+                {resultados.agent.top_3?.length>0&&(
+                  <div style={{background:C.card,border:`2px solid ${C.gold}40`,borderRadius:14,padding:20,marginBottom:20}}>
+                    <div style={{fontSize:11,color:C.gold,letterSpacing:2,marginBottom:12}}>🏆 TOP 3 PRIORIDADES</div>
+                    {resultados.agent.top_3.map((t,i)=>(
+                      <div key={i} style={{background:C.card2,border:`1px solid ${C.border}`,borderRadius:10,padding:12,marginBottom:8,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
                         <div>
-                          <div style={{ fontSize:16, fontWeight:700, color:C.text }}>{p.classificacao} {p.nome}</div>
-                          <div style={{ fontSize:11, color:C.textDim, marginTop:2 }}>{p.categoria} · R${p.valor}</div>
+                          <span style={{fontSize:18,fontWeight:700,color:C.gold}}>#{t.posicao}</span>
+                          <span style={{fontSize:14,marginLeft:10}}>{t.nome}</span>
                         </div>
-                        <div style={{ fontSize:28, fontWeight:800, color:corScore, minWidth:50, textAlign:"right" }}>{p.score}</div>
+                        <div style={{display:"flex",gap:8,alignItems:"center"}}>
+                          <span style={{fontSize:11,color:C.textDim}}>{t.recomendacao}</span>
+                          <span style={{fontSize:14,fontWeight:700,color:C.success,background:C.successDim,padding:"4px 10px",borderRadius:6}}>{t.score}/100</span>
+                        </div>
                       </div>
+                    ))}
+                  </div>
+                )}
 
-                      <div style={{ fontSize:12, color:C.success, marginBottom:12, fontStyle:"italic" }}>💡 {p.por_que}</div>
+                {/* Produtos */}
+                {resultados.agent.produtos?.map((p,i)=>{
+                  const cor=p.score>=90?C.gold:p.score>=75?"#ff6b35":p.score>=60?C.accent:C.textDim;
+                  return(
+                    <div key={i} style={{background:C.card,border:`2px solid ${cor}35`,borderRadius:14,padding:20,marginBottom:16}}>
+                      <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:12}}>
+                        <div>
+                          <div style={{fontSize:16,fontWeight:700}}>{p.classificacao} {p.nome}</div>
+                          <div style={{fontSize:11,color:C.textDim,marginTop:2}}>{p.categoria} · R${p.valor}</div>
+                        </div>
+                        <div style={{fontSize:30,fontWeight:900,color:cor}}>{p.score}</div>
+                      </div>
+                      <div style={{fontSize:12,color:C.success,fontStyle:"italic",marginBottom:12}}>💡 {p.por_que}</div>
 
-                      <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fit,minmax(130px,1fr))", gap:10, marginBottom:12 }}>
+                      <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(110px,1fr))",gap:8,marginBottom:12}}>
                         {[
                           ["Conversão",`${p.conversao}%`,C.success],
                           ["Criadores",p.criadores,C.text],
                           ["Comissão/venda",`R$${p.comissao_por_venda?.toFixed(2)}`,C.gold],
                           ["GMV",p.gmv,C.info],
                         ].map(([l,v,c])=>(
-                          <div key={l} style={{ background:C.card2, borderRadius:8, padding:"8px 12px" }}>
-                            <div style={{ fontSize:9, color:C.textDim, marginBottom:2 }}>{l}</div>
-                            <div style={{ fontSize:13, fontWeight:600, color:c }}>{v}</div>
+                          <div key={l} style={{background:C.card2,borderRadius:8,padding:"8px 10px"}}>
+                            <div style={{fontSize:9,color:C.textDim}}>{l}</div>
+                            <div style={{fontSize:13,fontWeight:600,color:c}}>{v}</div>
                           </div>
                         ))}
                       </div>
 
-                      <div style={{ background:C.card2, border:`1px solid ${C.gold}30`, borderRadius:10, padding:12, marginBottom:12 }}>
-                        <div style={{ fontSize:9, color:C.gold, letterSpacing:2, marginBottom:4 }}>💰 PATH R$10K</div>
-                        <div style={{ fontSize:13, fontWeight:600, color:C.text }}>{p.path_10k}</div>
+                      <div style={{background:C.card2,border:`1px solid ${C.gold}25`,borderRadius:10,padding:12,marginBottom:12}}>
+                        <div style={{fontSize:9,color:C.gold,letterSpacing:2,marginBottom:4}}>💰 PATH R$10K/MÊS</div>
+                        <div style={{fontSize:13,fontWeight:600}}>{p.path_10k}</div>
                       </div>
 
                       {p.angulos_matadores?.length>0&&(
-                        <div style={{ background:C.card2, border:`1px solid ${C.border}`, borderRadius:10, padding:12, marginBottom:12 }}>
-                          <div style={{ fontSize:9, color:C.purple, letterSpacing:2, marginBottom:8 }}>💡 ÂNGULOS MATADORES</div>
+                        <div style={{marginBottom:12}}>
+                          <div style={{fontSize:9,color:C.textDim,letterSpacing:2,marginBottom:8}}>💡 ÂNGULOS MATADORES</div>
                           {p.angulos_matadores.map((a,ai)=>(
-                            <div key={ai} style={{ fontSize:12, color:C.textMid, marginBottom:4 }}>· {a}</div>
+                            <div key={ai} style={{fontSize:12,color:C.textMid,marginBottom:4}}>· {a}</div>
                           ))}
                         </div>
                       )}
 
                       {p.hooks_prontos?.length>0&&(
-                        <div style={{ background:C.card2, border:`1px solid ${C.border}`, borderRadius:10, padding:12, marginBottom:12 }}>
-                          <div style={{ fontSize:9, color:C.gold, letterSpacing:2, marginBottom:8 }}>🎣 HOOKS PRONTOS</div>
+                        <div style={{marginBottom:12}}>
+                          <div style={{fontSize:9,color:C.gold,letterSpacing:2,marginBottom:8}}>🎣 HOOKS PRONTOS</div>
                           {p.hooks_prontos.map((h,hi)=>(
-                            <div key={hi} onClick={()=>onCopy(h,`hook_agent_${i}_${hi}`)} style={{ background:C.gold+"08", border:`1px solid ${copied===`hook_agent_${i}_${hi}`?C.success:C.gold+"20"}`, borderRadius:8, padding:"8px 12px", marginBottom:6, cursor:"pointer", fontSize:13, color:C.text }}>
+                            <div key={hi} onClick={()=>onCopy(h,`ah${i}${hi}`)} style={{
+                              background:C.gold+"08",border:`1px solid ${copied===`ah${i}${hi}`?C.success:C.gold+"20"}`,
+                              borderRadius:8,padding:"8px 12px",marginBottom:6,cursor:"pointer",fontSize:13,
+                            }}>
                               "{h}"
-                              <div style={{ fontSize:9, color:copied===`hook_agent_${i}_${hi}`?C.success:C.textDim, marginTop:4 }}>{copied===`hook_agent_${i}_${hi}`?"✓ copiado":"copiar"}</div>
+                              <div style={{fontSize:9,color:copied===`ah${i}${hi}`?C.success:C.textDim,marginTop:4}}>
+                                {copied===`ah${i}${hi}`?"✓ copiado":"copiar"}
+                              </div>
                             </div>
                           ))}
                         </div>
                       )}
 
                       {p.red_flags?.length>0&&(
-                        <div style={{ background:C.accentDim, border:`1px solid ${C.accent}30`, borderRadius:10, padding:12, marginBottom:12 }}>
-                          <div style={{ fontSize:9, color:C.accent, letterSpacing:2, marginBottom:6 }}>⚠️ RED FLAGS</div>
+                        <div style={{background:C.accentDim,border:`1px solid ${C.accent}30`,borderRadius:8,padding:"10px 12px",marginBottom:12}}>
+                          <div style={{fontSize:9,color:C.accent,letterSpacing:2,marginBottom:6}}>⚠️ RED FLAGS</div>
                           {p.red_flags.map((rf,ri)=>(
-                            <div key={ri} style={{ fontSize:12, color:C.accent, marginBottom:2 }}>· {rf}</div>
+                            <div key={ri} style={{fontSize:12,color:C.accent,marginBottom:2}}>· {rf}</div>
                           ))}
                         </div>
                       )}
 
-                      <button onClick={()=>usarProduto(p)} style={{ ...btn(false, C.success), width:"100%", fontWeight:700 }}>
+                      <button onClick={()=>usarProduto(p)} style={{...btn(false,C.success),width:"100%",fontWeight:700}}>
                         🚀 USAR ESTE PRODUTO → Gerar Conteúdo
                       </button>
                     </div>
@@ -758,288 +1151,563 @@ export default function TikTokShopGeneratorSupreme() {
 
         {/* PRODUTO */}
         {aba==="produto"&&(
-          <div style={{ maxWidth:700, margin:"0 auto" }}>
-            <div style={{ marginBottom:24 }}>
-              <Badge>📦 PRODUTO</Badge>
-              <div style={{ fontSize:22, fontWeight:800, color:C.text }}>Informações do Produto</div>
-            </div>
-            <div style={{ background:C.card, border:`1px solid ${C.border}`, borderRadius:16, padding:24 }}>
-              <div style={{ display:"grid", gap:14 }}>
-                <input style={inp()} placeholder="Nome do produto" value={form.nome} onChange={e=>setForm({...form,nome:e.target.value})} />
-                <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:14 }}>
-                  <input style={inp()} placeholder="Valor (ex: 49.90)" value={form.valor} onChange={e=>setForm({...form,valor:e.target.value})} />
-                  <select style={inp()} value={form.categoria} onChange={e=>setForm({...form,categoria:e.target.value})}>
-                    {CATEGORIAS.map(c=><option key={c} value={c}>{c}</option>)}
-                  </select>
-                </div>
-                <textarea style={inp({minHeight:90,resize:"vertical"})} placeholder="Descrição (benefícios, diferenciais, público-alvo...)" value={form.descricao} onChange={e=>setForm({...form,descricao:e.target.value})} />
-                <textarea style={inp({minHeight:100,resize:"vertical",background:"#150a15",border:`2px solid ${form.copyViral?C.accent:C.border}`})} placeholder="📺 COPY VIRAL (opcional) — Cole uma copy que vendeu para modelar a estrutura" value={form.copyViral} onChange={e=>setForm({...form,copyViral:e.target.value})} />
-                {form.copyViral&&<div style={{ fontSize:11, color:C.accent, background:C.accentDim, padding:"8px 12px", borderRadius:8, border:`1px solid ${C.accent}30` }}>✨ Copy viral detectada! Estrutura será modelada nas gerações.</div>}
-                <textarea style={inp({minHeight:60,resize:"vertical"})} placeholder="Creators/Insights (opcional)" value={form.creators} onChange={e=>setForm({...form,creators:e.target.value})} />
-                <label style={{ display:"flex", alignItems:"center", gap:10, cursor:"pointer" }}>
-                  <input type="checkbox" checked={blindador} onChange={e=>setBlindador(e.target.checked)} style={{ width:16, height:16, accentColor:C.gold }} />
-                  <span style={{ fontSize:13, color:C.textMid }}>🛡️ Blindador Ultra (6 camadas de proteção)</span>
-                </label>
-                {erro&&<div style={{ padding:"12px 16px", background:C.accentDim, border:`1px solid ${C.accent}40`, borderRadius:10, fontSize:13, color:C.accent }}>⚠️ {erro}</div>}
-                <div style={{ height:1, background:C.border, margin:"4px 0" }} />
-                <div style={{ display:"flex", gap:10, flexWrap:"wrap" }}>
-                  <button onClick={()=>gerar("hooks")} disabled={loading||!apiConfigurada} style={btn(loading||!apiConfigurada)}>
-                    {loading?"⟳ Gerando...":"🎣 Gerar Hooks"}
-                  </button>
-                  <button onClick={()=>gerar("roteiros")} disabled={loading||!apiConfigurada} style={btn(loading||!apiConfigurada)}>
-                    {loading?"⟳ Gerando...":"🎬 Gerar Roteiros"}
-                  </button>
-                  <button onClick={()=>gerar("coringa")} disabled={loading||!apiConfigurada} style={btn(loading||!apiConfigurada, C.accent)}>
-                    {loading?"⟳ Gerando...":"🔥 Gerar Coringa"}
-                  </button>
-                  <button onClick={gerarMetaAds} disabled={loadingMeta||!apiConfigurada} style={btn(loadingMeta||!apiConfigurada, C.info)}>
-                    {loadingMeta?"⟳ Gerando...":"📘 Meta Ads"}
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
+          <div style={{maxWidth:700,margin:"0 auto"}}>
+            <Badge>📦 PRODUTO</Badge>
+            <div style={{fontSize:22,fontWeight:800,marginBottom:24}}>Informações do Produto</div>
 
-        {/* META ADS */}
-        {aba==="meta"&&(
-          <div>
-            <div style={{ marginBottom:24 }}>
-              <Badge color={C.info}>📘 META ADS ENGINE</Badge>
-              <div style={{ fontSize:22, fontWeight:800, color:C.text }}>5 Hooks que Convertem ($1M testado)</div>
-              <div style={{ fontSize:13, color:C.textDim, marginTop:6 }}>500+ anúncios testados · Qualquer nicho</div>
-            </div>
-
-            {!resultadoMeta&&(
-              <div style={{ background:C.card, border:`1px solid ${C.border}`, borderRadius:16, padding:24, marginBottom:20, textAlign:"center" }}>
-                {!form.nome||!form.descricao
-                  ?<div style={{ color:C.textDim, fontSize:14 }}>Preencha o produto na aba 📦 Produto primeiro</div>
-                  :<button onClick={gerarMetaAds} disabled={loadingMeta} style={{ ...btn(loadingMeta, C.info), padding:"14px 32px", fontSize:14 }}>
-                    {loadingMeta?"⟳ Gerando 5 hooks...":"📘 Gerar 5 Hooks Meta Ads"}
-                  </button>
-                }
+            {!apiReady&&(
+              <div style={{padding:"14px 18px",background:C.accentDim,border:`1px solid ${C.accent}40`,borderRadius:10,fontSize:13,color:C.accent,marginBottom:20,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                <span>⚠️ Configure a API primeiro!</span>
+                <button onClick={()=>setAba("config")} style={btn(false,C.accent)}>Configurar →</button>
               </div>
             )}
 
-            {resultadoMeta?.meta_hooks&&(
-              <div>
-                <div style={{ display:"flex", gap:6, marginBottom:16, overflowX:"auto", paddingBottom:4 }}>
-                  {resultadoMeta.meta_hooks.map((h,i)=>(
-                    <button key={i} onClick={()=>setAbaMetaAtiva(i)} style={{ background:abaMetaAtiva===i?C.info+"20":C.card, border:`1px solid ${abaMetaAtiva===i?C.info+"60":C.border}`, borderRadius:10, padding:"8px 14px", cursor:"pointer", fontFamily:"inherit", color:abaMetaAtiva===i?C.info:C.textDim, fontSize:12, fontWeight:abaMetaAtiva===i?700:400, whiteSpace:"nowrap" }}>
-                      {i+1}. {h.nome}
+            <div style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:14,padding:24}}>
+              <div style={{display:"grid",gap:14}}>
+
+                <input style={inp()} placeholder="Nome do produto *"
+                  value={form.nome} onChange={e=>setForm(p=>({...p,nome:e.target.value}))}/>
+
+                <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:14}}>
+                  <input style={inp()} placeholder="Valor R$ *"
+                    value={form.valor} onChange={e=>setForm(p=>({...p,valor:e.target.value}))}/>
+                  <select style={inp()} value={form.categoria}
+                    onChange={e=>setForm(p=>({...p,categoria:e.target.value}))}>
+                    {CATS.map(c=><option key={c} value={c}>{c}</option>)}
+                  </select>
+                </div>
+
+                <textarea style={inp({minHeight:90,resize:"vertical"})}
+                  placeholder="Descrição / Benefícios / Diferenciais *"
+                  value={form.descricao} onChange={e=>setForm(p=>({...p,descricao:e.target.value}))}/>
+
+                <input
+                  style={inp({background:"#050a10",border:`1px solid ${form.keyword?C.info+"60":C.border}`})}
+                  placeholder="🔍 Keyword SEO (Creator Search Insights) — ex: best serum for oily skin"
+                  value={form.keyword}
+                  onChange={e=>setForm(p=>({...p,keyword:e.target.value}))}
+                />
+                {form.keyword&&(
+                  <div style={{fontSize:11,color:C.info,background:C.infoDim,padding:"8px 12px",borderRadius:8}}>
+                    ✅ Keyword será integrada no hook, narração e legenda automaticamente
+                  </div>
+                )}
+
+                <textarea
+                  style={inp({minHeight:90,resize:"vertical",background:"#150a15",border:`2px solid ${form.copyViral?C.accent:C.border}`})}
+                  placeholder="📺 COPY VIRAL (opcional) — cole um script que já vendeu para modelar a estrutura"
+                  value={form.copyViral}
+                  onChange={e=>setForm(p=>({...p,copyViral:e.target.value}))}
+                />
+                {form.copyViral&&(
+                  <div style={{fontSize:11,color:C.accent,background:C.accentDim,padding:"8px 12px",borderRadius:8}}>
+                    ✨ Copy viral detectada! Estrutura será modelada em todas as gerações.
+                  </div>
+                )}
+
+                <textarea style={inp({minHeight:60,resize:"vertical"})}
+                  placeholder="Dados Creators / Kalodata (opcional)"
+                  value={form.creators} onChange={e=>setForm(p=>({...p,creators:e.target.value}))}/>
+
+                {/* Quantidade */}
+                <div style={{background:C.card2,border:`1px solid ${C.border}`,borderRadius:10,padding:16}}>
+                  <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
+                    <div style={{fontSize:11,color:C.gold,letterSpacing:2}}>📊 QUANTIDADE</div>
+                    <div style={{fontSize:26,fontWeight:900,color:C.gold}}>{quantidade}</div>
+                  </div>
+                  <input type="range" min="5" max="50" step="5" value={quantidade}
+                    onChange={e=>setQuantidade(parseInt(e.target.value))}
+                    style={{width:"100%",accentColor:C.gold}}/>
+                  <div style={{display:"flex",justifyContent:"space-between",fontSize:10,color:C.textDim,marginTop:4}}>
+                    <span>5</span><span>25</span><span>50</span>
+                  </div>
+                </div>
+
+                {/* Modo Ultra inline */}
+                <div style={{background:C.goldDim,border:`1px solid ${C.gold}30`,borderRadius:10,padding:14,display:"flex",alignItems:"center",justifyContent:"space-between"}}>
+                  <div>
+                    <div style={{fontSize:11,color:C.gold,fontWeight:700}}>⚡ MODO: {limite} PALAVRAS</div>
+                    <div style={{fontSize:10,color:C.textDim,marginTop:2}}>
+                      {limite===30?"Ideal para Veo 3 · Reels 8-10s":"Ideal para Grok · Reels 12-15s"}
+                    </div>
+                  </div>
+                  <div style={{display:"flex",gap:6}}>
+                    {[30,40].map(n=>(
+                      <button key={n} onClick={()=>setLimite(n)} style={{
+                        background:limite===n?C.gold:"transparent",
+                        border:`1px solid ${limite===n?C.gold:C.border}`,
+                        borderRadius:8,padding:"6px 14px",
+                        color:limite===n?"#000":C.textMid,
+                        fontSize:13,fontWeight:700,cursor:"pointer",fontFamily:"inherit",
+                      }}>{n}</button>
+                    ))}
+                  </div>
+                </div>
+
+                <label style={{display:"flex",alignItems:"center",gap:10,cursor:"pointer"}}>
+                  <input type="checkbox" checked={blindador} onChange={e=>setBlindador(e.target.checked)}
+                    style={{width:16,height:16,accentColor:C.gold}}/>
+                  <span style={{fontSize:13,color:C.textMid}}>🛡️ Blindador Ultra v3 (compliance TikTok BR)</span>
+                </label>
+
+                {erro&&(
+                  <div style={{padding:"12px 16px",background:C.accentDim,border:`1px solid ${C.accent}40`,borderRadius:10,fontSize:13,color:C.accent}}>
+                    ⚠️ {erro}
+                  </div>
+                )}
+
+                <div style={{height:1,background:C.border}}/>
+
+                {/* Botões */}
+                <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(150px,1fr))",gap:10}}>
+                  {[
+                    {tipo:"pov",    label:"📱 POV 10S",    cor:C.gold},
+                    {tipo:"coringa",label:"🔥 Coringa",     cor:C.accent},
+                    {tipo:"hooks",  label:"🎣 Hooks",       cor:C.gold},
+                    {tipo:"villain",label:"🎬 Villain Hero",cor:C.gold},
+                    {tipo:"meta",   label:"💰 Meta Ads",    cor:C.info},
+                    {tipo:"veo3",   label:"🚀 Veo 3",       cor:C.purple},
+                  ].map(({tipo,label,cor})=>(
+                    <button key={tipo} onClick={()=>gerar(tipo)}
+                      disabled={loading||!apiReady}
+                      style={btn(loading||!apiReady,cor)}>
+                      {loading&&loadingTipo===tipo?"⟳ Gerando...":`${label} (${quantidade})`}
                     </button>
                   ))}
                 </div>
 
-                {(()=>{
-                  const h = resultadoMeta.meta_hooks[abaMetaAtiva];
-                  const nivelCor = h.nivel_conversao==="MÁXIMO"?C.accent:h.nivel_conversao==="MUITO ALTO"?C.warning:C.gold;
-                  const cor = [C.gold,C.blue,C.purple,C.warning,C.accent][abaMetaAtiva];
-                  return (
-                    <div style={{ background:C.card, border:`2px solid ${cor}40`, borderRadius:14, padding:24, marginBottom:16 }}>
-                      <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:16 }}>
-                        <div>
-                          <Badge color={cor}>HOOK {h.numero}</Badge>
-                          <div style={{ fontSize:20, fontWeight:800, color:C.text }}>{h.nome}</div>
-                        </div>
-                        <div style={{ background:nivelCor+"20", border:`1px solid ${nivelCor}40`, borderRadius:20, padding:"6px 14px", fontSize:11, color:nivelCor, fontWeight:700 }}>🔥 {h.nivel_conversao}</div>
-                      </div>
-                      <CopyBox label="🎯 HOOK PRINCIPAL" content={h.hook_principal} id={`mh${abaMetaAtiva}`} copied={copied} onCopy={onCopy} color={cor} large />
-                      <CopyBox label="🎬 SCRIPT COMPLETO" content={h.script_completo} id={`ms${abaMetaAtiva}`} copied={copied} onCopy={onCopy} color={C.success} />
-                      {h.variacoes_dor?.length>0&&(
-                        <div style={{ background:C.card2, border:`1px solid ${C.border}`, borderRadius:10, padding:"12px 14px", marginBottom:10 }}>
-                          <div style={{ fontSize:9, color:C.textDim, letterSpacing:2, marginBottom:10 }}>🔄 VARIAÇÕES DE DOR</div>
-                          {h.variacoes_dor.map((v,vi)=>(
-                            <div key={vi} onClick={()=>onCopy(v,`vd${abaMetaAtiva}${vi}`)} style={{ background:cor+"08", border:`1px solid ${copied===`vd${abaMetaAtiva}${vi}`?C.success:cor+"20"}`, borderRadius:8, padding:"8px 12px", marginBottom:6, cursor:"pointer", fontSize:13, color:C.text }}>
-                              {v}
-                              <div style={{ fontSize:9, color:copied===`vd${abaMetaAtiva}${vi}`?C.success:C.textDim, marginTop:4 }}>{copied===`vd${abaMetaAtiva}${vi}`?"✓ copiado":"copiar"}</div>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                      {h.instrucao_avatar&&(
-                        <div style={{ background:C.card2, border:`1px solid ${C.border}`, borderRadius:10, padding:"12px 14px", marginBottom:10 }}>
-                          <div style={{ fontSize:9, color:C.textDim, letterSpacing:2, marginBottom:6 }}>🎭 INSTRUÇÃO DO AVATAR</div>
-                          <div style={{ fontSize:12, color:C.textMid, lineHeight:1.6 }}>{h.instrucao_avatar}</div>
-                        </div>
-                      )}
-                      <div style={{ display:"grid", gap:8, marginTop:4 }}>
-                        <div style={{ fontSize:12, color:C.textMid }}><strong style={{color:C.text}}>Quando usar:</strong> {h.quando_usar}</div>
-                        <div style={{ fontSize:12, color:C.textMid }}><strong style={{color:C.text}}>Por que converte:</strong> {h.por_que_converte}</div>
-                      </div>
-                    </div>
-                  );
-                })()}
-
-                {resultadoMeta.estrategia_teste&&(
-                  <div style={{ background:C.card, border:`1px solid ${C.gold}30`, borderRadius:14, padding:20 }}>
-                    <Badge>⚡ ESTRATÉGIA DE TESTE</Badge>
-                    <div style={{ display:"grid", gap:8 }}>
-                      {[["Ordem","ordem_teste"],["Volume","volume_por_hook"],["Escala","como_escalar"],["Dica crítica","dica_critica"]].map(([k,key])=>(
-                        <div key={k} style={{ fontSize:12, color:C.textMid }}><strong style={{color:C.gold}}>{k}:</strong> {resultadoMeta.estrategia_teste[key]}</div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                <div style={{ marginTop:16, textAlign:"center" }}>
-                  <button onClick={gerarMetaAds} disabled={loadingMeta} style={btn(loadingMeta, C.info)}>
-                    {loadingMeta?"⟳ Gerando...":"🔄 Regenerar"}
-                  </button>
-                </div>
               </div>
-            )}
+            </div>
           </div>
         )}
 
-        {/* HOOKS */}
-        {aba==="hooks"&&(
+        {/* POV 10S */}
+        {aba==="pov"&&(
           <div>
-            <div style={{ marginBottom:20 }}>
-              <Badge>🎣 POV HOOKS</Badge>
-              <div style={{ fontSize:22, fontWeight:800, color:C.text }}>5 Padrões Científicos</div>
-              <div style={{ fontSize:13, color:C.textDim, marginTop:4 }}>Testados com $1M em ad spend</div>
+            <Badge>📱 POV 10S</Badge>
+            <div style={{fontSize:22,fontWeight:800,marginBottom:6}}>Formato POV Segurando Produto</div>
+            <div style={{fontSize:13,color:C.textDim,marginBottom:24}}>
+              Validado · 8-10s · SEO integrado · Loop perfeito · {limite} palavras
             </div>
-            {resultado&&tipoAtual==="hooks"&&resultado.pov_hooks
-              ?resultado.pov_hooks.map((h,i)=>{
-                const cores=[C.gold,C.accent,C.purple,C.blue,"#10b981"];
-                const cor=cores[i%cores.length];
-                return (
-                  <div key={i} style={{ background:C.card, border:`1px solid ${C.border}`, borderRadius:14, padding:20, marginBottom:16 }}>
-                    <Badge color={cor}>PADRÃO {i+1}</Badge>
-                    <div style={{ fontSize:16, fontWeight:700, color:C.text, marginBottom:12 }}>{h.padrao}</div>
-                    <CopyBox label="📱 HOOK" content={h.hook} id={`h${i}`} copied={copied} onCopy={onCopy} color={cor} large />
-                    <div style={{ display:"grid", gap:8 }}>
-                      {[["Estrutura",h.estrutura],["Por que funciona",h.por_que_funciona],["Quando usar",h.quando_usar],["Variação",h.exemplo_variacao]].map(([k,v])=>(
-                        <div key={k} style={{ fontSize:12, color:C.textMid }}><strong style={{color:C.text}}>{k}:</strong> {v}</div>
-                      ))}
+            {resultados.pov?.videos_pov?.length>0?resultados.pov.videos_pov.map((v,i)=>{
+              const scoreCor=C.gold;
+              return(
+                <div key={i} style={{background:C.card,border:`2px solid ${scoreCor}25`,borderRadius:14,padding:20,marginBottom:20}}>
+                  <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:14}}>
+                    <div>
+                      <Badge>VÍDEO {v.numero}</Badge>
+                      <div style={{fontSize:15,fontWeight:700}}>{v.padrao_hook}</div>
+                    </div>
+                    <div style={{display:"flex",gap:6,flexWrap:"wrap",justifyContent:"flex-end"}}>
+                      <span style={{fontSize:10,color:C.gold,background:C.goldDim,padding:"3px 10px",borderRadius:20}}>{v.duracao}</span>
+                      <span style={{fontSize:10,color:C.success,background:C.successDim,padding:"3px 10px",borderRadius:20}}>{v.total_palavras} pal</span>
+                      {v.gatilho_usado&&<span style={{fontSize:10,color:C.purple,background:C.purpleDim,padding:"3px 10px",borderRadius:20}}>{v.gatilho_usado}</span>}
                     </div>
                   </div>
-                );
-              })
-              :<EmptyState icon="🎣" title="Nenhum hook gerado ainda" sub="Vá em 📦 Produto e clique em Gerar Hooks" />
-            }
-          </div>
-        )}
 
-        {/* ROTEIROS */}
-        {aba==="roteiros"&&(
-          <div>
-            <div style={{ marginBottom:20 }}>
-              <Badge>🎬 VILLAIN VS HERO</Badge>
-              <div style={{ fontSize:22, fontWeight:800, color:C.text }}>Roteiros Estruturados</div>
-              <div style={{ fontSize:13, color:C.textDim, marginTop:4 }}>3 roteiros · máx 30 palavras · carrinho laranja</div>
-            </div>
-            {resultado&&tipoAtual==="roteiros"&&resultado.roteiros_villain_hero
-              ?resultado.roteiros_villain_hero.map((r,i)=>{
-                const palavras=(r.roteiro_narrado||"").split(" ").filter(Boolean).length;
-                return (
-                  <div key={i} style={{ background:C.card, border:`1px solid ${C.border}`, borderRadius:14, padding:20, marginBottom:16 }}>
-                    <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:12 }}>
-                      <div><Badge>ROTEIRO {r.numero}</Badge><div style={{ fontSize:16, fontWeight:700, color:C.text }}>Villain vs Hero</div></div>
-                      <div style={{ fontSize:11, color:C.gold, background:C.goldDim, padding:"4px 12px", borderRadius:20, border:`1px solid ${C.gold}30` }}>{r.duracao_estimada}</div>
+                  {v.keyword_seo&&(
+                    <div style={{fontSize:11,color:C.info,background:C.infoDim,padding:"8px 12px",borderRadius:8,marginBottom:12}}>
+                      🔍 Keyword SEO: <strong>{v.keyword_seo}</strong>
                     </div>
-                    <CopyBox label="📱 POV HOOK" content={r.pov_hook} id={`rp${i}`} copied={copied} onCopy={onCopy} color={C.gold} large />
-                    <CopyBox label={`🎙️ ROTEIRO · ${palavras} PALAVRAS`} content={r.roteiro_narrado} id={`rn${i}`} copied={copied} onCopy={onCopy} color={C.success} />
-                    <div style={{ background:C.card2, border:`1px solid ${C.border}`, borderRadius:10, padding:"12px 14px", marginBottom:10 }}>
-                      <div style={{ fontSize:9, color:C.textDim, letterSpacing:2, marginBottom:10 }}>ESTRUTURA</div>
-                      {[["👿 Villain",r.villain,C.warning],["🦸 Hero",r.hero,C.success],["✓ Proof",r.proof,C.info]].map(([l,v,c])=>(
-                        <div key={l} style={{ marginBottom:8, fontSize:12 }}><strong style={{color:c}}>{l}:</strong> <span style={{color:C.textMid}}>{v}</span></div>
-                      ))}
-                    </div>
-                    <CopyBox label="📋 LEGENDA SEO" content={r.legenda_seo} id={`rl${i}`} copied={copied} onCopy={onCopy} color={C.warning} />
-                    <CopyBox label="# HASHTAGS (5)" content={r.hashtags?.join(" ")} id={`rh${i}`} copied={copied} onCopy={onCopy} color={C.info} />
-                    <div style={{ fontSize:11, color:C.textDim }}><strong style={{color:C.textMid}}>Quando usar:</strong> {r.quando_usar}</div>
+                  )}
+
+                  <CopyBox label="📱 HOOK TEXTO NA TELA (0-2s)" content={v.hook_texto_tela} id={`pov_ht${i}`} copied={copied} onCopy={onCopy} color={C.gold} large/>
+                  <CopyBox label="🎙️ HOOK NARRADO (0-2s) — fale isso enquanto o texto aparece" content={v.hook_narrado} id={`pov_hn${i}`} copied={copied} onCopy={onCopy} color={C.gold}/>
+
+                  <div style={{background:C.card2,border:`1px solid ${C.border}`,borderRadius:10,padding:14,marginBottom:10}}>
+                    <div style={{fontSize:9,color:C.warning,letterSpacing:2,marginBottom:8}}>📷 BODY VISUAL (2-7s) — o que fazer com o produto na mão</div>
+                    <div style={{fontSize:13,color:C.text}}>{v.body_visual}</div>
                   </div>
-                );
-              })
-              :<EmptyState icon="🎬" title="Nenhum roteiro gerado ainda" sub="Vá em 📦 Produto e clique em Gerar Roteiros" />
-            }
+
+                  <CopyBox label="🎙️ BODY NARRADO (2-7s)" content={v.body_narrado} id={`pov_bn${i}`} copied={copied} onCopy={onCopy} color={C.warning}/>
+                  <CopyBox label="🛒 CTA (7-10s)" content={v.cta} id={`pov_cta${i}`} copied={copied} onCopy={onCopy} color={C.success}/>
+                  <CopyBox label="📋 LEGENDA SEO" content={v.legenda} id={`pov_leg${i}`} copied={copied} onCopy={onCopy} color={C.info}/>
+                  <CopyBox label="# HASHTAGS (5)" content={v.hashtags?.join(" ")} id={`pov_hash${i}`} copied={copied} onCopy={onCopy} color={C.purple}/>
+
+                  {v.loop&&(
+                    <div style={{background:C.purpleDim,border:`1px solid ${C.purple}30`,borderRadius:8,padding:"10px 14px",marginBottom:10}}>
+                      <div style={{fontSize:9,color:C.purple,letterSpacing:2,marginBottom:4}}>🔄 LOOP PERFEITO</div>
+                      <div style={{fontSize:12,color:C.textMid}}>{v.loop}</div>
+                    </div>
+                  )}
+
+                  {v.por_que_converte&&(
+                    <div style={{fontSize:11,color:C.textDim}}>
+                      🧠 <strong style={{color:C.textMid}}>Por que converte:</strong> {v.por_que_converte}
+                    </div>
+                  )}
+                </div>
+              );
+            }):<Empty icon="📱" title="Nenhum vídeo POV gerado" sub='Vá em 📦 Produto e clique em "POV 10S"'/>}
           </div>
         )}
 
         {/* CORINGA */}
         {aba==="coringa"&&(
           <div>
-            <div style={{ marginBottom:20 }}>
-              <Badge color={C.accent}>🔥 FORMATO CORINGA</Badge>
-              <div style={{ fontSize:22, fontWeight:800, color:C.text }}>10 Variações Virais</div>
-              <div style={{ fontSize:13, color:C.textDim, marginTop:4 }}>214k+ views · POV format</div>
+            <Badge color={C.accent}>🔥 FORMATO CORINGA</Badge>
+            <div style={{fontSize:22,fontWeight:800,marginBottom:6}}>Baseado em 214k+ Views</div>
+            <div style={{fontSize:13,color:C.textDim,marginBottom:24}}>
+              Negativas + Original + Preço + Urgência · {limite} palavras
             </div>
-            {resultado&&tipoAtual==="coringa"&&resultado.formato_coringa
-              ?resultado.formato_coringa.map((c,i)=>(
-                <div key={i} style={{ background:C.card, border:`1px solid ${C.accent}30`, borderRadius:14, padding:20, marginBottom:12 }}>
-                  <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:8 }}>
-                    <Badge color={C.accent}>VARIAÇÃO {c.variacao}</Badge>
-                    <div style={{ fontSize:10, color:C.textDim }}>{c.quando_usar}</div>
+            {resultados.coringa?.formato_coringa?.length>0?resultados.coringa.formato_coringa.map((c,i)=>(
+              <div key={i} style={{background:C.card,border:`1px solid ${C.accent}30`,borderRadius:14,padding:20,marginBottom:16}}>
+                <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
+                  <Badge color={C.accent}>VARIAÇÃO {c.numero}</Badge>
+                  <div style={{display:"flex",gap:6}}>
+                    <span style={{fontSize:10,color:C.success,background:C.successDim,padding:"3px 10px",borderRadius:20}}>{c.total_palavras} palavras</span>
+                    <span style={{fontSize:10,color:C.textDim,background:C.card2,padding:"3px 10px",borderRadius:20}}>{c.inspirado_em}</span>
                   </div>
-                  <CopyBox label="🔥 TEXTO" content={c.texto} id={`co${i}`} copied={copied} onCopy={onCopy} color={C.accent} />
-                  <div style={{ fontSize:11, color:C.textDim }}><strong style={{color:C.textMid}}>Estrutura:</strong> {c.estrutura}</div>
                 </div>
-              ))
-              :<EmptyState icon="🔥" title="Nenhuma variação gerada ainda" sub="Vá em 📦 Produto e clique em Gerar Coringa" />
-            }
+
+                <CopyBox label="🔥 TEXTO COMPLETO" content={c.texto_completo} id={`cor${i}`} copied={copied} onCopy={onCopy} color={C.accent} large/>
+
+                {c.negativas_usadas?.length>0&&(
+                  <div style={{background:C.card2,borderRadius:8,padding:"10px 14px",marginBottom:10}}>
+                    <div style={{fontSize:9,color:C.textDim,letterSpacing:2,marginBottom:6}}>NEGATIVAS USADAS</div>
+                    <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
+                      {c.negativas_usadas.map((n,ni)=>(
+                        <span key={ni} style={{fontSize:11,color:C.accent,background:C.accentDim,padding:"3px 10px",borderRadius:20}}>{n}</span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:10}}>
+                  {c.preco_ancora&&(
+                    <div style={{background:C.card2,borderRadius:8,padding:"8px 12px"}}>
+                      <div style={{fontSize:9,color:C.gold,marginBottom:2}}>ÂNCORA DE PREÇO</div>
+                      <div style={{fontSize:12}}>{c.preco_ancora}</div>
+                    </div>
+                  )}
+                  {c.urgencia&&(
+                    <div style={{background:C.card2,borderRadius:8,padding:"8px 12px"}}>
+                      <div style={{fontSize:9,color:C.warning,marginBottom:2}}>URGÊNCIA</div>
+                      <div style={{fontSize:12}}>{c.urgencia}</div>
+                    </div>
+                  )}
+                </div>
+
+                {c.quando_usar&&(
+                  <div style={{fontSize:11,color:C.textDim}}>
+                    💡 <strong style={{color:C.textMid}}>Quando usar:</strong> {c.quando_usar}
+                  </div>
+                )}
+              </div>
+            )):<Empty icon="🔥" title="Nenhuma variação Coringa gerada" sub='Vá em 📦 Produto e clique em "Coringa"'/>}
           </div>
         )}
 
-        {/* ESCALA */}
+        {/* HOOKS */}
+        {aba==="hooks"&&(
+          <div>
+            <Badge>🎣 HOOKS CIENTÍFICOS</Badge>
+            <div style={{fontSize:22,fontWeight:800,marginBottom:6}}>12 Padrões Milionários</div>
+            <div style={{fontSize:13,color:C.textDim,marginBottom:24}}>
+              Score · CTR · Retenção · 3 Variações · {limite} palavras
+            </div>
+            {resultados.hooks?.hooks?.length>0?resultados.hooks.hooks.map((h,i)=>{
+              const scoreCor=h.score_probabilidade>=90?C.gold:h.score_probabilidade>=80?C.success:h.score_probabilidade>=70?C.warning:C.textDim;
+              const classifCor=h.classificacao?.includes("Milionário")?C.gold:h.classificacao?.includes("Campeão")?C.success:C.warning;
+              return(
+                <div key={i} style={{background:C.card,border:`2px solid ${scoreCor}30`,borderRadius:14,padding:20,marginBottom:20}}>
+
+                  {/* Header */}
+                  <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:14}}>
+                    <div>
+                      <Badge color={scoreCor}>HOOK {h.numero}</Badge>
+                      <div style={{fontSize:16,fontWeight:700,marginBottom:4}}>{h.padrao}</div>
+                      <div style={{fontSize:11,color:C.textDim}}>{h.formula_usada}</div>
+                    </div>
+                    <div style={{textAlign:"right"}}>
+                      <div style={{fontSize:34,fontWeight:900,color:scoreCor,lineHeight:1}}>{h.score_probabilidade}</div>
+                      <div style={{fontSize:9,color:C.textDim}}>/100</div>
+                    </div>
+                  </div>
+
+                  {/* Métricas */}
+                  <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(90px,1fr))",gap:8,marginBottom:14}}>
+                    {[
+                      ["CTR",h.ctr_esperado,C.success],
+                      ["Retenção",h.retencao_esperada,C.info],
+                      ["Conv. Média",h.conversao_media,C.gold],
+                      ["Nicho",h.nicho_ideal,C.purple],
+                    ].map(([l,v,c])=>v&&(
+                      <div key={l} style={{background:C.card2,borderRadius:8,padding:"8px 10px",textAlign:"center"}}>
+                        <div style={{fontSize:9,color:C.textDim,marginBottom:2}}>{l}</div>
+                        <div style={{fontSize:11,fontWeight:700,color:c}}>{v}</div>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Classificação */}
+                  {h.classificacao&&(
+                    <div style={{fontSize:11,color:classifCor,background:classifCor+"15",border:`1px solid ${classifCor}30`,padding:"5px 14px",borderRadius:20,display:"inline-block",marginBottom:14}}>
+                      {h.classificacao}
+                    </div>
+                  )}
+
+                  {/* Keyword */}
+                  {h.keyword_integrada&&(
+                    <div style={{fontSize:11,color:C.info,background:C.infoDim,padding:"8px 12px",borderRadius:8,marginBottom:12}}>
+                      🔍 Keyword: <strong>{h.keyword_integrada}</strong>
+                    </div>
+                  )}
+
+                  {/* Hook principal */}
+                  <CopyBox label="📱 HOOK TEXTO NA TELA (máx 12 palavras)" content={h.hook_texto_tela} id={`hk_tela${i}`} copied={copied} onCopy={onCopy} color={C.gold} large/>
+                  <CopyBox label="🎙️ HOOK NARRADO (com keyword)" content={h.hook_narrado} id={`hk_nar${i}`} copied={copied} onCopy={onCopy} color={C.warning}/>
+
+                  {/* Ciência */}
+                  <div style={{background:C.card2,borderRadius:10,padding:14,marginBottom:14}}>
+                    <div style={{fontSize:9,color:C.textDim,letterSpacing:2,marginBottom:10}}>🧠 CIÊNCIA POR TRÁS DO HOOK</div>
+                    {h.gatilho_psicologico&&<div style={{fontSize:12,color:C.textMid,marginBottom:6}}><strong style={{color:C.text}}>Gatilho:</strong> {h.gatilho_psicologico}</div>}
+                    {h.por_que_para_scroll&&<div style={{fontSize:12,color:C.textMid,marginBottom:6}}><strong style={{color:C.text}}>Por que para o scroll:</strong> {h.por_que_para_scroll}</div>}
+                    {h.quando_usar&&<div style={{fontSize:12,color:C.textMid}}><strong style={{color:C.text}}>Quando usar:</strong> {h.quando_usar}</div>}
+                  </div>
+
+                  {/* Variações */}
+                  {(h.variacao_1||h.variacao_2||h.variacao_3)&&(
+                    <div style={{background:C.purpleDim,border:`1px solid ${C.purple}20`,borderRadius:10,padding:14}}>
+                      <div style={{fontSize:9,color:C.purple,letterSpacing:2,marginBottom:10}}>🔄 3 VARIAÇÕES DO MESMO PADRÃO</div>
+                      {h.variacao_1&&<CopyBox label="VARIAÇÃO 1" content={h.variacao_1} id={`hkv1_${i}`} copied={copied} onCopy={onCopy} color={C.purple}/>}
+                      {h.variacao_2&&<CopyBox label="VARIAÇÃO 2" content={h.variacao_2} id={`hkv2_${i}`} copied={copied} onCopy={onCopy} color={C.purple}/>}
+                      {h.variacao_3&&<CopyBox label="VARIAÇÃO 3" content={h.variacao_3} id={`hkv3_${i}`} copied={copied} onCopy={onCopy} color={C.purple}/>}
+                    </div>
+                  )}
+                </div>
+              );
+            }):<Empty icon="🎣" title="Nenhum hook gerado" sub='Vá em 📦 Produto e clique em "Hooks"'/>}
+          </div>
+        )}
+
+        {/* VILLAIN HERO */}
+        {aba==="villain"&&(
+          <div>
+            <Badge>🎬 VILLAIN VS HERO</Badge>
+            <div style={{fontSize:22,fontWeight:800,marginBottom:6}}>Roteiros Estruturados</div>
+            <div style={{fontSize:13,color:C.textDim,marginBottom:24}}>
+              Para produtos que precisam de explicação · {limite} palavras
+            </div>
+            {resultados.villain?.roteiros_villain_hero?.length>0?resultados.villain.roteiros_villain_hero.map((r,i)=>{
+              const palavras=(r.roteiro_narrado||"").split(" ").filter(Boolean).length;
+              return(
+                <div key={i} style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:14,padding:20,marginBottom:16}}>
+                  <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
+                    <Badge>ROTEIRO {r.numero}</Badge>
+                    <div style={{display:"flex",gap:6}}>
+                      <span style={{fontSize:10,color:C.gold,background:C.goldDim,padding:"3px 10px",borderRadius:20}}>{r.duracao}</span>
+                      <span style={{fontSize:10,color:palavras<=limite?C.success:C.accent,background:palavras<=limite?C.successDim:C.accentDim,padding:"3px 10px",borderRadius:20}}>{palavras} palavras</span>
+                    </div>
+                  </div>
+
+                  {r.keyword_seo&&(
+                    <div style={{fontSize:11,color:C.info,background:C.infoDim,padding:"8px 12px",borderRadius:8,marginBottom:12}}>
+                      🔍 Keyword: <strong>{r.keyword_seo}</strong>
+                    </div>
+                  )}
+
+                  <CopyBox label="📱 HOOK TEXTO NA TELA" content={r.pov_hook_tela} id={`vh_ht${i}`} copied={copied} onCopy={onCopy} color={C.gold} large/>
+                  <CopyBox label={`🎙️ ROTEIRO NARRADO · ${palavras} PALAVRAS`} content={r.roteiro_narrado} id={`vh_rn${i}`} copied={copied} onCopy={onCopy} color={C.success}/>
+
+                  <div style={{background:C.card2,border:`1px solid ${C.border}`,borderRadius:10,padding:14,marginBottom:10}}>
+                    <div style={{fontSize:9,color:C.textDim,letterSpacing:2,marginBottom:10}}>ESTRUTURA</div>
+                    {[["👿 Villain",r.villain,C.warning],["🦸 Hero",r.hero,C.success],["✓ Proof",r.proof,C.info]].map(([l,v,c])=>v&&(
+                      <div key={l} style={{marginBottom:8,fontSize:12}}>
+                        <strong style={{color:c}}>{l}:</strong> <span style={{color:C.textMid}}>{v}</span>
+                      </div>
+                    ))}
+                  </div>
+
+                  <CopyBox label="📋 LEGENDA SEO" content={r.legenda_seo} id={`vh_leg${i}`} copied={copied} onCopy={onCopy} color={C.warning}/>
+                  <CopyBox label="# HASHTAGS (5)" content={r.hashtags?.join(" ")} id={`vh_hash${i}`} copied={copied} onCopy={onCopy} color={C.purple}/>
+                  {r.quando_usar&&<div style={{fontSize:11,color:C.textDim,marginTop:6}}>💡 <strong style={{color:C.textMid}}>Quando usar:</strong> {r.quando_usar}</div>}
+                </div>
+              );
+            }):<Empty icon="🎬" title="Nenhum roteiro gerado" sub='Vá em 📦 Produto e clique em "Villain Hero"'/>}
+          </div>
+        )}
+		        {/* META ADS */}
+        {aba==="meta"&&(
+          <div>
+            <Badge color={C.info}>💰 META ADS ENGINE</Badge>
+            <div style={{fontSize:22,fontWeight:800,marginBottom:6}}>5 Hooks que Convertem</div>
+            <div style={{fontSize:13,color:C.textDim,marginBottom:24}}>$1M+ testado · {limite} palavras</div>
+
+            {resultados.meta?.meta_hooks?.length>0?(
+              <div>
+                {resultados.meta.meta_hooks.map((h,i)=>(
+                  <div key={i} style={{background:C.card,border:`2px solid ${C.info}25`,borderRadius:14,padding:20,marginBottom:16}}>
+                    <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
+                      <div>
+                        <Badge color={C.info}>HOOK {h.numero}</Badge>
+                        <div style={{fontSize:16,fontWeight:700}}>{h.nome}</div>
+                      </div>
+                      <span style={{fontSize:11,color:h.nivel_conversao==="MÁXIMO"?C.accent:C.warning,background:(h.nivel_conversao==="MÁXIMO"?C.accentDim:C.warningDim),padding:"5px 14px",borderRadius:20,fontWeight:700}}>
+                        🔥 {h.nivel_conversao}
+                      </span>
+                    </div>
+                    <CopyBox label="🎯 HOOK PRINCIPAL" content={h.hook_principal} id={`meta_h${i}`} copied={copied} onCopy={onCopy} color={C.info} large/>
+                    <CopyBox label="🎬 SCRIPT COMPLETO" content={h.script_completo} id={`meta_s${i}`} copied={copied} onCopy={onCopy} color={C.success}/>
+                    {h.variacoes_dor?.length>0&&(
+                      <div style={{background:C.card2,borderRadius:8,padding:"10px 14px",marginBottom:10}}>
+                        <div style={{fontSize:9,color:C.textDim,letterSpacing:2,marginBottom:8}}>🔄 VARIAÇÕES DE DOR</div>
+                        {h.variacoes_dor.map((v,vi)=>(
+                          <CopyBox key={vi} label={`VAR ${vi+1}`} content={v} id={`meta_v${i}${vi}`} copied={copied} onCopy={onCopy} color={C.purple}/>
+                        ))}
+                      </div>
+                    )}
+                    {h.instrucao_avatar&&(
+                      <div style={{fontSize:11,color:C.textDim,marginTop:6}}>
+                        🎭 <strong style={{color:C.textMid}}>Avatar:</strong> {h.instrucao_avatar}
+                      </div>
+                    )}
+                  </div>
+                ))}
+                {resultados.meta.estrategia_teste&&(
+                  <div style={{background:C.card,border:`1px solid ${C.gold}30`,borderRadius:14,padding:20}}>
+                    <Badge>⚡ ESTRATÉGIA DE TESTE</Badge>
+                    {[["Ordem de teste",resultados.meta.estrategia_teste.ordem_teste],["Como escalar",resultados.meta.estrategia_teste.como_escalar]].map(([k,v])=>v&&(
+                      <div key={k} style={{fontSize:12,color:C.textMid,marginBottom:8}}>
+                        <strong style={{color:C.text}}>{k}:</strong> {v}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ):<Empty icon="💰" title="Nenhum hook Meta gerado" sub='Vá em 📦 Produto e clique em "Meta Ads"'/>}
+          </div>
+        )}
+
+        {/* VEO 3 */}
+        {aba==="veo3"&&(
+          <div>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:24}}>
+              <div>
+                <Badge color={C.purple}>🚀 VEO 3</Badge>
+                <div style={{fontSize:22,fontWeight:800,marginBottom:6}}>Scripts para IA de Vídeo</div>
+                <div style={{fontSize:13,color:C.textDim}}>Veo 3 · Sora · Kling · {limite} palavras</div>
+              </div>
+              {resultados.veo3?.scripts_veo?.length>0&&(
+                <button onClick={copiarTodosVeo} style={btn(false,C.success)}>
+                  {copied==="todos_veo"?"✓ Copiados!":"📋 Copiar Todos"}
+                </button>
+              )}
+            </div>
+
+            {resultados.veo3?.scripts_veo?.length>0?resultados.veo3.scripts_veo.map((s,i)=>{
+              const prompt=formatVeo(s);
+              return(
+                <div key={i} style={{background:C.card,border:`1px solid ${C.purple}30`,borderRadius:14,padding:20,marginBottom:16}}>
+                  <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
+                    <Badge color={C.purple}>PROMPT {s.numero}</Badge>
+                    <div style={{display:"flex",gap:6}}>
+                      <span style={{fontSize:10,color:C.warning}}>{s.palavras} palavras</span>
+                      <span style={{fontSize:10,color:C.purple,background:C.purpleDim,padding:"3px 10px",borderRadius:20}}>{s.tom_emocional}</span>
+                    </div>
+                  </div>
+                  <CopyBox label="🎬 PROMPT VEO 3 COMPLETO" content={prompt} id={`veo${i}`} copied={copied} onCopy={onCopy} color={C.purple}/>
+                  {s.descricao_visual&&(
+                    <div style={{background:C.card2,borderRadius:8,padding:"10px 14px"}}>
+                      <div style={{fontSize:9,color:C.textDim,letterSpacing:2,marginBottom:4}}>📷 DESCRIÇÃO VISUAL</div>
+                      <div style={{fontSize:12,color:C.textMid}}>{s.descricao_visual}</div>
+                    </div>
+                  )}
+                </div>
+              );
+            }):<Empty icon="🚀" title="Nenhum script Veo 3 gerado" sub='Vá em 📦 Produto e clique em "Veo 3"'/>}
+          </div>
+        )}
+
+        {/* ESCALA CBO */}
         {aba==="escala"&&(
           <div>
-            <div style={{ marginBottom:20 }}>
-              <Badge color={C.info}>🚀 ESCALA CIENTÍFICA</Badge>
-              <div style={{ fontSize:22, fontWeight:800, color:C.text }}>Multiplica Scripts Vencedores</div>
-              <div style={{ fontSize:13, color:C.textDim, marginTop:4 }}>CBO: testa 100 → 10 vendem → 3 explodem</div>
+            <Badge color={C.warning}>📊 ESCALA CIENTÍFICA CBO</Badge>
+            <div style={{fontSize:22,fontWeight:800,marginBottom:6}}>Multiplica Scripts Vencedores</div>
+            <div style={{fontSize:13,color:C.textDim,marginBottom:24}}>
+              testa 100 → 10 vendem → 3 explodem · {limite} palavras
             </div>
-            <div style={{ background:C.card, border:`1px solid ${C.border}`, borderRadius:16, padding:24, marginBottom:24 }}>
-              <div style={{ fontSize:11, color:C.textDim, letterSpacing:2, marginBottom:10 }}>SCRIPT VENCEDOR</div>
-              <textarea style={inp({minHeight:110,resize:"vertical"})} placeholder="Cole o script vencedor aqui..." value={scriptVencedor} onChange={e=>{setScriptVencedor(e.target.value);setErro(null);}} />
-              <div style={{ display:"flex", gap:10, marginTop:14, marginBottom:14 }}>
+
+            <div style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:14,padding:24,marginBottom:24}}>
+              <div style={{fontSize:11,color:C.textMid,marginBottom:10}}>
+                Cole o script que VENDEU ou VIRALIZOU:
+              </div>
+              <textarea
+                style={inp({minHeight:120,resize:"vertical"})}
+                placeholder='Ex: "minha amiga me indicou esse sérum, testei por 2 semanas, percebi diferença na textura, menos de 30 reais, carrinho laranja"'
+                value={scriptVencedor}
+                onChange={e=>{setScriptVencedor(e.target.value);setErro(null);}}
+              />
+
+              <div style={{fontSize:11,color:C.textMid,margin:"16px 0 10px"}}>Quantas variações?</div>
+              <div style={{display:"flex",gap:10,marginBottom:16}}>
                 {[10,20,50].map(n=>(
-                  <button key={n} onClick={()=>setNumVariacoes(n)} style={{ background:numVariacoes===n?C.goldDim:C.card2, border:`1px solid ${numVariacoes===n?C.gold+"60":C.border}`, borderRadius:10, padding:"10px 20px", color:numVariacoes===n?C.gold:C.textDim, fontSize:14, fontWeight:numVariacoes===n?700:400, cursor:"pointer", fontFamily:"inherit" }}>
+                  <button key={n} onClick={()=>setQtdEscala(n)} style={{
+                    background:qtdEscala===n?C.goldDim:C.card2,
+                    border:`1px solid ${qtdEscala===n?C.gold+"60":C.border}`,
+                    borderRadius:10,padding:"10px 20px",
+                    color:qtdEscala===n?C.gold:C.textDim,
+                    fontSize:14,fontWeight:qtdEscala===n?700:400,
+                    cursor:"pointer",fontFamily:"inherit",transition:"all 0.15s",
+                  }}>
                     {n}{n===20?" ✨":""}
                   </button>
                 ))}
               </div>
-              {erro&&<div style={{ marginBottom:14, padding:"12px 16px", background:C.accentDim, border:`1px solid ${C.accent}40`, borderRadius:10, fontSize:13, color:C.accent }}>⚠️ {erro}</div>}
-              <button onClick={gerarEscala} disabled={loadingEscala||!scriptVencedor.trim()||!apiConfigurada} style={btn(loadingEscala||!scriptVencedor.trim()||!apiConfigurada)}>
-                {loadingEscala?"⟳ Gerando...":`🚀 Gerar ${numVariacoes} Variações`}
+
+              {erro&&<div style={{marginBottom:14,fontSize:13,color:C.accent}}>⚠️ {erro}</div>}
+
+              <button onClick={gerarEscala} disabled={loadingEscala||!scriptVencedor.trim()}
+                style={btn(loadingEscala||!scriptVencedor.trim(),C.warning)}>
+                {loadingEscala?"⟳ Gerando...`":`🚀 Gerar ${qtdEscala} Variações`}
               </button>
             </div>
 
-            {resultadoEscala&&(
+            {resultados.escala&&(
               <div>
-                {resultadoEscala.analise&&(
-                  <div style={{ background:C.card, border:`1px solid ${C.border}`, borderRadius:14, padding:20, marginBottom:20 }}>
-                    <Badge>📊 ANÁLISE DO SCRIPT</Badge>
-                    <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10, marginTop:4 }}>
-                      {[["Padrão",resultadoEscala.analise.padrao_detectado],["Tom",resultadoEscala.analise.tom_emocional],["Estrutura",resultadoEscala.analise.estrutura],["Palavras",resultadoEscala.analise.duracao_palavras]].map(([k,v])=>(
-                        <div key={k} style={{ background:C.card2, borderRadius:8, padding:"8px 12px" }}>
-                          <div style={{ fontSize:9, color:C.textDim, marginBottom:2 }}>{k}</div>
-                          <div style={{ fontSize:13, fontWeight:600, color:C.gold }}>{v}</div>
+                {resultados.escala.analise&&(
+                  <div style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:14,padding:20,marginBottom:20}}>
+                    <Badge color={C.warning}>📊 ANÁLISE DO SCRIPT VENCEDOR</Badge>
+                    <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(130px,1fr))",gap:10,marginTop:4}}>
+                      {[
+                        ["Padrão",resultados.escala.analise.padrao_detectado],
+                        ["Tom",resultados.escala.analise.tom_emocional],
+                        ["Estrutura",resultados.escala.analise.estrutura],
+                        ["Palavras",resultados.escala.analise.total_palavras],
+                        ["Gatilho",resultados.escala.analise.gatilho_principal],
+                      ].map(([k,v])=>v&&(
+                        <div key={k} style={{background:C.card2,borderRadius:8,padding:"8px 12px"}}>
+                          <div style={{fontSize:9,color:C.textDim,marginBottom:2}}>{k}</div>
+                          <div style={{fontSize:12,fontWeight:600,color:C.gold}}>{v}</div>
                         </div>
                       ))}
                     </div>
                   </div>
                 )}
-                <div style={{ fontSize:11, color:C.textDim, letterSpacing:2, marginBottom:16 }}>{resultadoEscala.variacoes?.length} VARIAÇÕES GERADAS</div>
-                {resultadoEscala.variacoes?.map((v,i)=>{
-                  const palavras=(v.roteiro_narrado||"").split(" ").filter(Boolean).length;
-                  return (
-                    <div key={i} style={{ background:C.card, border:`1px solid ${C.border}`, borderRadius:14, padding:20, marginBottom:12 }}>
-                      <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:12 }}>
-                        <Badge>VAR {v.numero}</Badge>
-                        <span style={{ fontSize:10, color:C.warning, background:C.warning+"20", padding:"3px 10px", borderRadius:20, border:`1px solid ${C.warning}30` }}>{v.tipo_variacao}</span>
-                      </div>
-                      <CopyBox label="📱 HOOK" content={v.pov_hook} id={`ep${i}`} copied={copied} onCopy={onCopy} color={C.gold} large />
-                      <CopyBox label={`🎙️ ROTEIRO · ${palavras} PALAVRAS`} content={v.roteiro_narrado} id={`er${i}`} copied={copied} onCopy={onCopy} color={C.success} />
-                      <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:8 }}>
-                        <CopyBox label="📋 LEGENDA" content={v.legenda_seo} id={`el${i}`} copied={copied} onCopy={onCopy} color={C.warning} />
-                        <CopyBox label="# HASHTAGS" content={v.hashtags?.join(" ")} id={`eh${i}`} copied={copied} onCopy={onCopy} color={C.info} />
-                      </div>
-                      <div style={{ fontSize:10, color:C.textDim, marginTop:4 }}>💡 <strong style={{color:C.textMid}}>Mudança:</strong> {v.o_que_mudou}</div>
+
+                <div style={{fontSize:11,color:C.textDim,letterSpacing:2,marginBottom:16}}>
+                  {resultados.escala.variacoes?.length} VARIAÇÕES GERADAS
+                </div>
+
+                {resultados.escala.variacoes?.map((v,i)=>(
+                  <div key={i} style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:14,padding:20,marginBottom:12}}>
+                    <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
+                      <Badge color={C.warning}>VAR {v.numero}</Badge>
+                      <span style={{fontSize:10,color:C.warning,background:C.warningDim,padding:"3px 10px",borderRadius:20}}>
+                        {v.tipo_variacao}
+                      </span>
                     </div>
-                  );
-                })}
+                    <CopyBox label="📱 HOOK" content={v.hook_texto} id={`esc_h${i}`} copied={copied} onCopy={onCopy} color={C.gold} large/>
+                    <CopyBox label="🎙️ ROTEIRO" content={v.roteiro} id={`esc_r${i}`} copied={copied} onCopy={onCopy} color={C.success}/>
+                    <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
+                      <CopyBox label="📋 LEGENDA" content={v.legenda} id={`esc_l${i}`} copied={copied} onCopy={onCopy} color={C.warning}/>
+                      <CopyBox label="# HASHTAGS" content={v.hashtags?.join(" ")} id={`esc_hash${i}`} copied={copied} onCopy={onCopy} color={C.purple}/>
+                    </div>
+                    <div style={{fontSize:10,color:C.textDim,marginTop:4}}>
+                      💡 <strong style={{color:C.textMid}}>Mudança:</strong> {v.o_que_mudou}
+                    </div>
+                  </div>
+                ))}
               </div>
             )}
           </div>
@@ -1048,119 +1716,133 @@ export default function TikTokShopGeneratorSupreme() {
         {/* SHIELD */}
         {aba==="shield"&&(
           <div>
-            <div style={{ marginBottom:24 }}>
-              <Badge color={C.success}>🛡️ SHIELD</Badge>
-              <div style={{ fontSize:22, fontWeight:800, color:C.text }}>Scanner de Compliance</div>
-              <div style={{ fontSize:13, color:C.textDim, marginTop:6 }}>Detecta violações · Score 0-100 · Texto corrigido automaticamente</div>
+            <Badge color={C.success}>🛡️ SHIELD v3</Badge>
+            <div style={{fontSize:22,fontWeight:800,marginBottom:6}}>Scanner de Compliance</div>
+            <div style={{fontSize:13,color:C.textDim,marginBottom:24}}>
+              7 categorias · Score 0-100 · Correção automática
             </div>
 
-            <div style={{ display:"grid", gridTemplateColumns:"repeat(3,1fr)", gap:10, marginBottom:20 }}>
-              {[{cor:C.success,nivel:"🟢 VERDE",desc:"Score 80-100\nSeguro para postar"},{cor:C.warning,nivel:"🟡 AMARELO",desc:"Score 60-79\nAjuste necessário"},{cor:C.accent,nivel:"🔴 VERMELHO",desc:"Score 0-59\nRisco de ban"}].map(({cor,nivel,desc})=>(
-                <div key={nivel} style={{ background:cor+"10", border:`1px solid ${cor}30`, borderRadius:10, padding:"12px 14px" }}>
-                  <div style={{ fontSize:12, fontWeight:700, color:cor, marginBottom:4 }}>{nivel}</div>
-                  <div style={{ fontSize:10, color:C.textDim, whiteSpace:"pre-line", lineHeight:1.5 }}>{desc}</div>
+            <div style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:14,padding:24,marginBottom:20}}>
+              <textarea
+                style={inp({minHeight:150,resize:"vertical"})}
+                placeholder="Cole qualquer texto para analisar (hook, roteiro, legenda, script)..."
+                value={textoShield}
+                onChange={e=>{setTextoShield(e.target.value);setErro(null);if(resultados.shield)setResultados(p=>({...p,shield:null}));}}
+              />
+              {textoShield&&(
+                <div style={{fontSize:10,color:C.textDim,marginTop:4}}>
+                  {textoShield.split(" ").filter(Boolean).length} palavras
                 </div>
-              ))}
-            </div>
-
-            <div style={{ background:C.card, border:`1px solid ${C.border}`, borderRadius:16, padding:24, marginBottom:20 }}>
-              <textarea style={inp({minHeight:140,resize:"vertical"})} placeholder="Cole hook, roteiro, legenda ou qualquer texto que vai postar..." value={textoShield} onChange={e=>{setTextoShield(e.target.value);setErro(null);setResultadoShield(null);}} />
-              {textoShield&&<div style={{ marginTop:4, fontSize:10, color:C.textDim }}>{textoShield.split(" ").filter(Boolean).length} palavras</div>}
-              {erro&&<div style={{ marginTop:10, padding:"10px 14px", background:C.accentDim, border:`1px solid ${C.accent}40`, borderRadius:8, fontSize:12, color:C.accent }}>⚠️ {erro}</div>}
-              <button onClick={analisarShield} disabled={loadingShield||!textoShield.trim()} style={{ ...btn(loadingShield||!textoShield.trim(), C.success), marginTop:14 }}>
-                {loadingShield?"⟳ Analisando...":"🛡️ Analisar Compliance"}
+              )}
+              {erro&&<div style={{marginTop:10,fontSize:12,color:C.accent}}>⚠️ {erro}</div>}
+              <button onClick={gerarShield} disabled={loadingShield||!textoShield.trim()}
+                style={{...btn(loadingShield||!textoShield.trim(),C.success),marginTop:14}}>
+                {loadingShield?"⟳ Analisando 7 categorias...":"🛡️ Analisar Compliance"}
               </button>
             </div>
 
-            {resultadoShield&&(
-              <div>
-                <div style={{ background:C.card, border:`2px solid ${corRiscoShield}40`, borderRadius:16, padding:24, marginBottom:20 }}>
-                  <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", flexWrap:"wrap", gap:16, marginBottom:20 }}>
-                    <div>
-                      <div style={{ fontSize:11, color:C.textDim, letterSpacing:2, marginBottom:8 }}>SCORE DE SEGURANÇA</div>
-                      <div style={{ fontSize:36, fontWeight:800, color:scoreColorShield }}>{resultadoShield.score_seguranca}/100</div>
-                      <div style={{ fontSize:14, color:corRiscoShield, fontWeight:600, marginTop:4 }}>
-                        {resultadoShield.nivel_risco==="VERDE"?"🟢 APROVADO":resultadoShield.nivel_risco==="AMARELO"?"🟡 ATENÇÃO":"🔴 REPROVADO"} · {resultadoShield.nivel_risco}
-                      </div>
-                    </div>
-                    <div style={{ flex:1, minWidth:180 }}>
-                      <div style={{ height:8, background:C.border, borderRadius:4, overflow:"hidden" }}>
-                        <div style={{ height:"100%", width:`${resultadoShield.score_seguranca}%`, background:`linear-gradient(90deg,${scoreColorShield},${scoreColorShield}99)`, borderRadius:4, transition:"width 0.5s" }} />
-                      </div>
-                      <div style={{ display:"flex", justifyContent:"space-between", marginTop:6, fontSize:9, color:C.textDim }}>
-                        <span>0 BAN</span><span>60</span><span>80 SEGURO</span><span>100</span>
-                      </div>
-                    </div>
-                  </div>
-                  <div style={{ fontSize:13, color:C.textMid, lineHeight:1.7, padding:"12px 16px", background:C.card2, borderRadius:10 }}>{resultadoShield.resumo}</div>
-                </div>
+            {resultados.shield&&(()=>{
+              const sh=resultados.shield;
+              const nivelCor=sh.nivel_risco==="VERDE"?C.success:sh.nivel_risco==="AMARELO"?C.warning:C.accent;
+              return(
+                <div>
+                  <div style={{background:C.card,border:`2px solid ${nivelCor}40`,borderRadius:14,padding:24,marginBottom:16}}>
 
-                {resultadoShield.violacoes?.length>0&&(
-                  <div style={{ marginBottom:20 }}>
-                    <div style={{ fontSize:11, color:C.accent, letterSpacing:2, marginBottom:12 }}>❌ {resultadoShield.violacoes.length} VIOLAÇÃO(ÕES) DETECTADA(S)</div>
-                    {resultadoShield.violacoes.map((v,i)=>(
-                      <div key={i} style={{ background:C.card, border:`1px solid ${v.gravidade==="ALTA"?C.accent:v.gravidade==="MÉDIA"?C.warning:C.border}30`, borderRadius:12, padding:16, marginBottom:10 }}>
-                        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:10 }}>
-                          <div style={{ fontSize:12, fontWeight:700, color:v.gravidade==="ALTA"?C.accent:v.gravidade==="MÉDIA"?C.warning:C.textMid }}>
-                            {v.gravidade==="ALTA"?"🔴":v.gravidade==="MÉDIA"?"🟡":"🟢"} {v.tipo}
+                    <ScoreBar score={sh.score_seguranca}/>
+
+                    <div style={{fontSize:16,fontWeight:700,color:nivelCor,marginBottom:16}}>
+                      {sh.nivel_risco==="VERDE"?"🟢 APROVADO — Seguro para postar":sh.nivel_risco==="AMARELO"?"🟡 ATENÇÃO — Ajuste necessário":"🔴 RISCO DE BAN — Corrija antes de postar"}
+                    </div>
+
+                    <div style={{fontSize:13,color:C.textMid,lineHeight:1.7,background:C.card2,padding:14,borderRadius:10,marginBottom:20}}>
+                      {sh.resumo}
+                    </div>
+
+                    {sh.violacoes?.length>0&&(
+                      <div style={{marginBottom:20}}>
+                        <div style={{fontSize:11,color:C.accent,letterSpacing:2,marginBottom:12}}>
+                          ❌ {sh.violacoes.length} VIOLAÇÃO(ÕES) DETECTADA(S)
+                        </div>
+                        {sh.violacoes.map((v,i)=>(
+                          <div key={i} style={{background:C.accentDim,border:`1px solid ${C.accent}30`,borderRadius:10,padding:14,marginBottom:10}}>
+                            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
+                              <div style={{fontSize:12,fontWeight:700,color:C.accent}}>{v.tipo}</div>
+                              <span style={{fontSize:10,color:v.gravidade==="ALTA"?C.accent:C.warning,background:(v.gravidade==="ALTA"?C.accentDim:C.warningDim),padding:"2px 10px",borderRadius:20}}>
+                                {v.gravidade}
+                              </span>
+                            </div>
+                            {v.trecho&&(
+                              <div style={{fontSize:12,color:C.accent,fontStyle:"italic",marginBottom:8,background:C.accentDim,padding:"6px 10px",borderRadius:6}}>
+                                "{v.trecho}"
+                              </div>
+                            )}
+                            <div style={{fontSize:12,color:C.success}}>
+                              ✅ <strong>Sugestão:</strong> {v.sugestao}
+                            </div>
                           </div>
-                          <span style={{ fontSize:9, color:v.gravidade==="ALTA"?C.accent:C.warning, background:(v.gravidade==="ALTA"?C.accent:C.warning)+"15", padding:"2px 8px", borderRadius:10 }}>{v.gravidade}</span>
-                        </div>
-                        {v.trecho&&<div style={{ fontSize:12, color:C.accent, background:C.accentDim, padding:"6px 10px", borderRadius:6, marginBottom:8, fontStyle:"italic" }}>"{v.trecho}"</div>}
-                        <div style={{ fontSize:12, color:C.textDim, marginBottom:6 }}><strong style={{color:C.textMid}}>Motivo:</strong> {v.motivo}</div>
-                        <div style={{ fontSize:12, color:C.success }}><strong>✅ Sugestão:</strong> {v.sugestao}</div>
+                        ))}
                       </div>
-                    ))}
-                  </div>
-                )}
+                    )}
 
-                {resultadoShield.pontos_positivos?.length>0&&(
-                  <div style={{ marginBottom:20 }}>
-                    <div style={{ fontSize:11, color:C.success, letterSpacing:2, marginBottom:10 }}>✅ PONTOS POSITIVOS</div>
-                    <div style={{ background:C.card, border:`1px solid ${C.success}20`, borderRadius:12, padding:16 }}>
-                      {resultadoShield.pontos_positivos.map((p,i)=>(
-                        <div key={i} style={{ fontSize:12, color:C.textMid, marginBottom:6, display:"flex", gap:8 }}>
-                          <span style={{color:C.success}}>✓</span> {p}
+                    {sh.pontos_positivos?.length>0&&(
+                      <div style={{marginBottom:20}}>
+                        <div style={{fontSize:11,color:C.success,letterSpacing:2,marginBottom:10}}>✅ PONTOS POSITIVOS</div>
+                        <div style={{background:C.card,border:`1px solid ${C.success}20`,borderRadius:10,padding:14}}>
+                          {sh.pontos_positivos.map((p,i)=>(
+                            <div key={i} style={{fontSize:12,color:C.textMid,marginBottom:6,display:"flex",gap:8}}>
+                              <span style={{color:C.success}}>✓</span>{p}
+                            </div>
+                          ))}
                         </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {resultadoShield.texto_corrigido&&(
-                  <div style={{ background:C.card, border:`1px solid ${C.success}30`, borderRadius:14, overflow:"hidden" }}>
-                    <div style={{ padding:"14px 18px", borderBottom:`1px solid ${C.border}`, display:"flex", justifyContent:"space-between", alignItems:"center" }}>
-                      <div>
-                        <div style={{ fontSize:11, color:C.success, letterSpacing:2, marginBottom:2 }}>✨ TEXTO CORRIGIDO</div>
-                        <div style={{ fontSize:11, color:C.textDim }}>Versão segura pronta para postar</div>
                       </div>
-                      <button onClick={()=>onCopy(resultadoShield.texto_corrigido,"shield_corrigido")} style={{ background:copied==="shield_corrigido"?C.successDim:C.goldDim, border:`1px solid ${copied==="shield_corrigido"?C.success:C.gold}50`, borderRadius:8, padding:"8px 14px", color:copied==="shield_corrigido"?C.success:C.gold, fontSize:11, fontWeight:600, cursor:"pointer", fontFamily:"inherit" }}>
-                        {copied==="shield_corrigido"?"✓ Copiado!":"📋 Copiar"}
-                      </button>
-                    </div>
-                    <div style={{ padding:18, fontSize:14, color:C.text, lineHeight:1.8, background:C.success+"08" }}>{resultadoShield.texto_corrigido}</div>
+                    )}
+
+                    {sh.texto_corrigido&&(
+                      <div style={{background:C.card,border:`1px solid ${C.success}30`,borderRadius:12,overflow:"hidden"}}>
+                        <div style={{padding:"12px 18px",borderBottom:`1px solid ${C.border}`,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                          <div>
+                            <div style={{fontSize:11,color:C.success,letterSpacing:2}}>✨ TEXTO CORRIGIDO</div>
+                            <div style={{fontSize:10,color:C.textDim,marginTop:2}}>Versão segura pronta para postar</div>
+                          </div>
+                          <button
+                            onClick={()=>onCopy(sh.texto_corrigido,"shield_copy")}
+                            style={{background:copied==="shield_copy"?C.successDim:C.goldDim,border:`1px solid ${copied==="shield_copy"?C.success:C.gold}50`,borderRadius:8,padding:"7px 16px",color:copied==="shield_copy"?C.success:C.gold,fontSize:12,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>
+                            {copied==="shield_copy"?"✓ Copiado!":"📋 Copiar"}
+                          </button>
+                        </div>
+                        <div style={{padding:18,fontSize:14,color:C.text,lineHeight:1.8,background:C.success+"05"}}>
+                          {sh.texto_corrigido}
+                        </div>
+                      </div>
+                    )}
                   </div>
-                )}
-              </div>
-            )}
+                </div>
+              );
+            })()}
           </div>
         )}
+
       </div>
 
       {/* FOOTER */}
-      <div style={{ borderTop:`1px solid ${C.border}`, padding:"24px 20px", textAlign:"center", marginTop:40 }}>
-        <div style={{ fontSize:9, letterSpacing:5, color:C.gold, marginBottom:6 }}>🔥 TIKTOK SHOP GENERATOR SUPREME</div>
-        <div style={{ fontSize:11, color:C.textDim }}>OpenRouter · Agent Finder · Meta Ads · Shield · Copy Viral · Escala Científica · 6 Camadas</div>
+      <div style={{borderTop:`1px solid ${C.border}`,padding:"24px 20px",textAlign:"center",marginTop:40}}>
+        <div style={{fontSize:9,letterSpacing:6,color:C.gold,marginBottom:6}}>
+          ⚡ MODO ULTRA CONVERTER MILHÕES
+        </div>
+        <div style={{fontSize:11,color:C.textDim}}>
+          OpenRouter · Grok · Gemini · POV 10S · Coringa · Hooks 12 Padrões · Villain · Meta · Veo 3 · Agent · Shield
+        </div>
       </div>
 
       <style>{`
-        * { box-sizing:border-box; }
-        body { margin:0; background:${C.bg}; }
-        select option { background:#0d0d0d; color:#f0e8d8; }
-        ::-webkit-scrollbar { width:4px; height:4px; }
-        ::-webkit-scrollbar-track { background:${C.bg}; }
-        ::-webkit-scrollbar-thumb { background:#2a2a2a; border-radius:2px; }
-        input::placeholder, textarea::placeholder { color:#444; }
+        *{box-sizing:border-box;}
+        body{margin:0;background:#000;}
+        select option{background:#111;color:#f0ece4;}
+        ::-webkit-scrollbar{width:4px;height:4px;}
+        ::-webkit-scrollbar-track{background:#000;}
+        ::-webkit-scrollbar-thumb{background:#222;border-radius:2px;}
+        input::placeholder,textarea::placeholder{color:#444;}
+        input[type="range"]{accent-color:#ffd700;width:100%;}
       `}</style>
     </div>
   );
