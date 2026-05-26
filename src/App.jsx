@@ -29,14 +29,12 @@ function sanitizeJson(raw) {
 // API — MULTI PROVIDER
 // ═══════════════════════════════════════════════════════════
 
-// Keys por provider — salvas no localStorage
 const KEYS_KEY = "tiktok_supreme_keys_v2";
 const getKeys  = () => { try { return JSON.parse(localStorage.getItem(KEYS_KEY)||"{}"); } catch { return {}; } };
 const saveKeys = (k) => localStorage.setItem(KEYS_KEY, JSON.stringify(k));
 const getKey   = (provider) => getKeys()[provider] || "";
 const setKey   = (provider, val) => { const k=getKeys(); k[provider]=val; saveKeys(k); };
 
-// Provider ativo
 const PROVIDER_KEY = "tiktok_supreme_provider";
 const getProvider  = () => localStorage.getItem(PROVIDER_KEY) || "openrouter";
 const saveProvider = (p) => localStorage.setItem(PROVIDER_KEY, p);
@@ -71,8 +69,6 @@ const PROVIDERS_CFG = {
     free: false,
   },
 };
-
-// ── Chamadas por provider ──────────────────────────────────
 
 async function callOpenRouter(key, prompt, max_tokens = 4000) {
   const r = await fetch("https://openrouter.ai/api/v1/chat/completions", {
@@ -110,7 +106,6 @@ async function callGrok(key, prompt, max_tokens = 4000) {
   });
   const d = await r.json();
   if (!r.ok) throw new Error(d.error?.message || `Erro Grok ${r.status}`);
-  // Grok /responses format
   if (d.output) {
     for (const block of d.output) {
       if (block.type === "message" && block.content) {
@@ -176,24 +171,17 @@ async function callAI(prompt, max_tokens = 4000) {
   throw new Error("Provider desconhecido: " + provider);
 }
 
-async function callClaude(prompt, max_tokens = 4000) {
-  return callAI(prompt, max_tokens);
-}
-
 async function callJSON(prompt, max_tokens = 4000) {
   const raw = await callAI(
     prompt + "\n\n⚠️ CRÍTICO: RESPONDA APENAS JSON PURO. SEM ```json SEM ``` SEM markdown SEM texto antes ou depois.",
     max_tokens
   );
 
-  // Tenta extrair JSON da resposta
   let c = raw.replace(/```json|```/gi, "").trim();
 
-  // Remove texto antes do primeiro { e depois do último }
   const s = c.indexOf("{"), e = c.lastIndexOf("}");
   if (s !== -1 && e !== -1) c = c.slice(s, e + 1);
 
-  // Tenta corrigir JSON truncado (fecha chaves/arrays abertos)
   const fixJSON = (str) => {
     let opens = 0, openArr = 0;
     for (const ch of str) {
@@ -202,26 +190,23 @@ async function callJSON(prompt, max_tokens = 4000) {
       if (ch === "[") openArr++;
       if (ch === "]") openArr--;
     }
-    str = str.replace(/,(\s*[}\]])/g, "$1"); // remove trailing commas
+    str = str.replace(/,(\s*[}\]])/g, "$1");
     for (let i = 0; i < openArr; i++) str += "]";
     for (let i = 0; i < opens;   i++) str += "}";
     return str;
   };
 
-  // 3 tentativas de parse
   try { return JSON.parse(c); } catch {}
   try { return JSON.parse(fixJSON(c)); } catch {}
   try {
     const clean = c.replace(/[""]/g, '"').replace(/[\u0000-\u001F\u007F]/g, " ");
     return JSON.parse(fixJSON(sanitizeJson(clean)));
   } catch(e) {
-    // Lança erro com preview do que veio pra debug
     const preview = raw.slice(0, 200).replace(/\n/g, " ");
     throw new Error(`JSON inválido. Resposta recebida: "${preview}..."`);
   }
 }
 
-// Gemini direto — usado no UGC Clone (independente do provider principal)
 async function callGeminiVideo(key, fileUri, mimeType, cloneProd, UGC_SYSTEM) {
   const r = await fetch(
     `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${key}`,
@@ -249,6 +234,44 @@ async function callGeminiVideo(key, fileUri, mimeType, cloneProd, UGC_SYSTEM) {
   }
   return d.candidates?.[0]?.content?.parts?.map(p => p.text || "").join("") || "";
 }
+
+// ═══════════════════════════════════════════════════════════
+// AVATARES (SEUS 8 AVATARES ORIGINAIS)
+// ═══════════════════════════════════════════════════════════
+const AVATARES = {
+  "1": {
+    nome: "Cowboy musculoso na cerca",
+    prompt: "A muscular man, appearing to be of Hispanic ethnicity and in his late twenties to early thirties, is centered in the frame, leaning against a wooden fence. He wears a white cowboy hat, blue denim jeans, and a detailed brown leather belt with a large silver buckle featuring an embossed bull. He is shirtless, revealing a toned physique. His facial features include a dark, well-groomed beard and mustache, dark hair, and a friendly, confident smile directed at the viewer. His left hand rests casually in his jeans pocket, while his right arm is bent and resting on the fence. The background depicts a rustic outdoor setting with trees and a weathered wooden structure, bathed in warm, natural sunlight that highlights his skin and musculature. The perspective is a medium shot, slightly from below, emphasizing his strong presence. The overall atmosphere is one of rugged charm and confident masculinity, with a focus on his physique and country attire."
+  },
+  "2": {
+    nome: "Cowboy com laço e celeiro",
+    prompt: "A shirtless, muscular, adult male of likely Hispanic ethnicity with dark hair and a beard smiles broadly as he leans against a wooden fence. He wears a light beige cowboy hat, blue jeans, a brown leather belt with an ornate buckle, and two silver necklaces. He holds a lasso and a pair of tan leather gloves. His body is lean and athletic. The background is a ranch scene with horses blurred in the distance, hay bales, and a red barn under a bright, sunny sky, with dust motes visible in the air. The man is positioned slightly to the right of the frame, facing his left in a three-quarter profile. The perspective is eye-level, with a shallow depth of field that blurs the background and highlights the subject. The lighting is bright and natural, casting a warm glow. The atmosphere is casual and rustic."
+  },
+  "3": {
+    nome: "Cowboy jovem sorrindo no celeiro",
+    prompt: "A young adult man, appearing to be in his late 20s to early 30s, with olive ethnicity, a fit and muscular build, stands centered in the frame. He is wearing a white cowboy hat, dark blue jeans with a studded leather belt and a large, ornate buckle, and a silver chain necklace. He has short, dark hair, a neatly trimmed beard and mustache, and a bright, genuine smile with white teeth. His hands are casually placed in his jean pockets, and he is facing slightly towards the viewer but looking directly at the camera. The setting is a rustic farm with an old wooden barn in the background and hay bales to the left. The lighting is warm and natural, suggesting late afternoon sunlight, which highlights his physique and casts gentle shadows. The perspective is eye-level, creating an intimate and inviting atmosphere. The overall style is photorealistic, capturing a sense of confident masculinity and rural charm."
+  },
+  "4": {
+    nome: "Homem maduro selfie com carro aberto",
+    prompt: "A middle-aged man with salt-and-pepper hair and a beard, wearing a denim shirt, is taking a selfie outdoors. He has a warm smile and is looking directly at the camera. Behind him, the door of a car is open, and the background shows a rural landscape with fields and a clear sky during sunset, casting a warm, golden light. The overall mood is relaxed and pleasant."
+  },
+  "5": {
+    nome: "Homem agro premium estrada de terra",
+    prompt: "Homem brasileiro maduro de aproximadamente 50 anos, extremamente atraente, barba grisalha bem desenhada, cabelo sal e pimenta volumoso penteado para trás, sorriso leve e olhar confiante. Ele está tirando uma selfie com o braço estendido ao lado de uma caminhonete preta em uma estrada de terra no meio da fazenda. Usa camisa jeans azul clara de manga longa levemente aberta no peito. Fundo com plantações verdes, horizonte aberto e céu limpo no pôr do sol. Luz golden hour cinematográfica iluminando o rosto, atmosfera rural sofisticada, estilo agro premium, ultra realista, textura de pele natural, fotografia lifestyle de luxo, profundidade de campo suave, estética masculina elegante e autêntica, qualidade 8k."
+  },
+  "6": {
+    nome: "Homem agro de luxo no curral",
+    prompt: "Homem brasileiro maduro de 50 anos, muito elegante e carismático, barba grisalha perfeitamente alinhada, cabelo grisalho moderno com volume, sorriso marcante e olhar seguro. Tirando selfie em um curral de fazenda durante o pôr do sol. Usa camisa social vermelha aberta no colarinho com correntes douradas discretas no peito. Ao fundo há bois, cercas rurais, colinas verdes e uma caminhonete preta estacionada. Iluminação dourada intensa da golden hour, visual agro de luxo, aparência de empresário rural bem-sucedido, fotografia hiper-realista, tons quentes, estética cinematográfica, ultra detailed, realistic skin texture, 8k."
+  },
+  "7": {
+    nome: "Homem maduro musculoso sem camisa",
+    prompt: "Homem brasileiro maduro extremamente atraente de aproximadamente 50 anos, físico musculoso e definido, peito largo, ombros fortes, barba grisalha curta e elegante, cabelo sal e pimenta penteado para trás. Expressão séria e intensa olhando diretamente para a câmera. Tirando selfie sem camisa em uma varanda de fazenda de madeira. Fundo com cerca rural, árvores e campo aberto ao entardecer. Luz natural dourada lateral destacando definição muscular e textura da pele. Atmosfera masculina sofisticada, sensualidade madura, estética rural premium, fotografia ultra realista, cinematic lighting, shallow depth of field, 8k."
+  },
+  "8": {
+    nome: "Homem maduro confiável de polo azul",
+    prompt: "Homem brasileiro maduro de cerca de 50 anos, aparência amigável e confiável, barba grisalha curta e bem cuidada, cabelo escuro grisalho penteado de forma elegante. Gravando selfie ao ar livre em ambiente rural. Usa camisa polo azul-marinho escura e corrente fina dourada com crucifixo. Ao fundo há caminhonetes estacionadas e uma construção rural simples de madeira. Luz solar quente da manhã/tarde iluminando o rosto naturalmente. Visual conservador sofisticado, estilo homem do campo moderno, ultra realistic photography, natural skin texture, lifestyle agro brasileiro, cinematic realism, 8k."
+  }
+};
 
 // ═══════════════════════════════════════════════════════════
 // DATA
@@ -532,7 +555,7 @@ export default function App() {
   // ── API STATUS / CONFIG ──
   const [activeProvider, setActiveProvider] = useState(getProvider);
   const [keys,           setKeys]           = useState(getKeys);
-  const [apiStatus,      setApiStatus]      = useState("idle"); // "idle"|"testing"|"ok"|"error"
+  const [apiStatus,      setApiStatus]      = useState("idle");
   const [apiLatency,     setApiLatency]     = useState(null);
   const [apiError,       setApiError]       = useState("");
   const [showKeyModal,   setShowKeyModal]   = useState(false);
@@ -588,7 +611,6 @@ export default function App() {
     } catch { setGeminiStatus("error"); }
   };
 
-  // Testa ao carregar e quando provider/key mudam
   useEffect(() => {
     if (getKey(getProvider())) testarAI();
     else setApiStatus("idle");
@@ -677,11 +699,9 @@ Gere ${qtd} hooks científicos. Cada hook: 6-12 palavras MÁXIMO. Ordene por sco
     if (!finderTxt.trim()) { setErro("Cole o conteúdo da página!"); return; }
     setErro(null); setLoading(true);
     try {
-      // Limita o texto a 12000 chars pra não explodir o contexto
       const txt = finderTxt.slice(0, 12000);
       const data = await callJSON(buildFinderPrompt(txt), 8000);
       if (data?.produtos?.length > 0) {
-        // Adiciona emojis de classificação se não tiver
         const emojis = {"OURO ESCONDIDO":"🏆","CAVALO DE GUERRA":"🔥","FOGUETE":"💥","VIAVEL":"✅","IGNORAR":"🔴"};
         data.produtos = data.produtos.map(p => ({
           ...p,
@@ -798,7 +818,7 @@ JSON PURO:
   ];
 
   // ── UGC CLONE ──
-  const [cloneMode,      setCloneMode]      = useState("descricao"); // "descricao" | "frames" | "gemini"
+  const [cloneMode,      setCloneMode]      = useState("descricao");
   const [cloneDesc,      setCloneDesc]      = useState("");
   const [cloneProd,      setCloneProd]      = useState("");
   const [cloneRes,       setCloneRes]       = useState(null);
@@ -836,13 +856,11 @@ SECTION 3: Final Image-to-Video Motion Prompt (one paragraph, ready to paste)
 
 VISUAL LOCK: Preserve original image exactly. Transfer motion only.`;
 
-  // Shared: parse Claude/Gemini raw text → sections
   const parseCloneResult = (raw) => {
     const parts = raw.split("---SECTION---").map(s=>s.trim()).filter(Boolean);
     return { analise: parts[0]||raw, resumo: parts[1]||"", prompt: parts[2]||"", raw };
   };
 
-  // MODE 1 — Descrição (texto)
   const gerarCloneDesc = async () => {
     if (!cloneDesc.trim()) { setErro("Descreva o vídeo de referência!"); return; }
     setErro(null); setLoading(true);
@@ -864,7 +882,6 @@ VISUAL LOCK: Preserve original image exactly. Transfer motion only.`;
     setLoading(false);
   };
 
-  // MODE 2 — Frames via Canvas → Claude Vision
   const extractFrames = (file) => new Promise((resolve, reject) => {
     const video  = document.createElement("video");
     const canvas = document.createElement("canvas");
@@ -877,7 +894,7 @@ VISUAL LOCK: Preserve original image exactly. Transfer motion only.`;
       canvas.width  = Math.min(video.videoWidth,  640);
       canvas.height = Math.min(video.videoHeight, 360);
       const duration = Math.min(video.duration, 12);
-      const step     = duration / 8; // 8 frames spread across the video
+      const step     = duration / 8;
       const times    = Array.from({length:8}, (_,i) => +(i * step).toFixed(2));
       let idx = 0;
       const next = () => {
@@ -925,14 +942,12 @@ VISUAL LOCK: Preserve original image exactly. Transfer motion only.`;
     setLoading(false);
   };
 
-  // MODE 3 — Gemini API (vídeo nativo)
   const gerarCloneGemini = async () => {
     if (!cloneVideo)      { setErro("Selecione um vídeo!"); return; }
     if (!cloneGeminiKey.trim()) { setErro("Informe sua Gemini API Key!"); return; }
     setErro(null); setLoading(true);
     const KEY = cloneGeminiKey.trim();
     try {
-      // 1. Upload to Gemini File API
       setCloneProgress("📤 Fazendo upload do vídeo para o Gemini...");
       const uploadRes = await fetch(
         `https://generativelanguage.googleapis.com/upload/v1beta/files?uploadType=multipart&key=${KEY}`,
@@ -952,7 +967,6 @@ VISUAL LOCK: Preserve original image exactly. Transfer motion only.`;
       const mimeType   = uploadData?.file?.mimeType || cloneVideo.type || "video/mp4";
       if (!fileUri) throw new Error("Upload falhou: " + JSON.stringify(uploadData));
 
-      // 2. Poll until ACTIVE
       setCloneProgress("⏳ Processando vídeo no Gemini...");
       const fileName = uploadData.file.name;
       let attempts = 0;
@@ -965,7 +979,6 @@ VISUAL LOCK: Preserve original image exactly. Transfer motion only.`;
         attempts++;
       }
 
-      // 3. Analyze with Gemini 2.0 Flash
       setCloneProgress("🔬 Analisando movimento com Gemini 2.0 Flash...");
       const analyzeRes = await fetch(
         `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${KEY}`,
@@ -1022,7 +1035,7 @@ VISUAL LOCK: Preserve original image exactly. Transfer motion only.`;
             TikTok Shop Generator ULTIMATE SUPREME
           </h1>
           <p style={{fontSize:11, color:C.dim, margin:0, fontFamily:font}}>
-            FastMoss BR · Agent Finder · Hooks · Roteiros 5F · Coringa · Meta Ads · Legendas · Veo 3 · CBO · Shield
+            FastMoss BR · Agent Finder · Hooks · Roteiros 5F · Coringa · Meta Ads · Legendas · Veo 3 · CBO · Shield · Monetização
           </p>
           <div style={{marginTop:10, display:"flex", alignItems:"center", gap:8, flexWrap:"wrap"}}>
 
@@ -1046,7 +1059,6 @@ VISUAL LOCK: Preserve original image exactly. Transfer motion only.`;
               {apiStatus==="error"   && `${PROVIDERS_CFG[activeProvider]?.name} · Erro — clique para testar`}
             </div>
 
-            {/* BOTÃO CONFIGURAR */}
             <button onClick={()=>setShowKeyModal(true)} style={{
               display:"inline-flex", alignItems:"center", gap:6, borderRadius:20, padding:"5px 14px", fontSize:11, fontFamily:font,
               background: getKey(activeProvider) ? "#ffd70018" : "#ff000018",
@@ -1057,7 +1069,6 @@ VISUAL LOCK: Preserve original image exactly. Transfer motion only.`;
               ⚙️ {getKey(activeProvider) ? "Configurado" : "Configurar API"}
             </button>
 
-            {/* GEMINI CLONE STATUS */}
             {geminiStatus!=="idle"&&(
               <div style={{
                 display:"inline-flex", alignItems:"center", gap:6, borderRadius:20, padding:"5px 14px", fontSize:11, fontFamily:font,
@@ -1089,7 +1100,6 @@ VISUAL LOCK: Preserve original image exactly. Transfer motion only.`;
             <div style={{fontSize:9, color:C.gold, letterSpacing:3, marginBottom:12, fontFamily:font}}>⚙️ CONFIGURAR API</div>
             <div style={{fontSize:20, fontWeight:800, marginBottom:20}}>Escolha o Provider</div>
 
-            {/* PROVIDER SELECTOR */}
             <div style={{display:"grid", gap:8, marginBottom:20}}>
               {Object.entries(PROVIDERS_CFG).map(([id, p])=>(
                 <div key={id} onClick={()=>changeProvider(id)} style={{
@@ -1111,7 +1121,6 @@ VISUAL LOCK: Preserve original image exactly. Transfer motion only.`;
               ))}
             </div>
 
-            {/* KEY INPUT */}
             <div style={{fontSize:9, color:C.gold, letterSpacing:2, marginBottom:8, fontFamily:font}}>
               API KEY — {PROVIDERS_CFG[activeProvider]?.name}
             </div>
@@ -1150,6 +1159,7 @@ VISUAL LOCK: Preserve original image exactly. Transfer motion only.`;
           </div>
         </div>
       )}
+
       <div style={{borderBottom:`1px solid ${C.border}`, background:C.card, position:"sticky", top:0, zIndex:100}}>
         <div style={{maxWidth:1100, margin:"0 auto", display:"flex", overflowX:"auto", padding:"0 16px"}}>
           {ABAS.map(a=>(
@@ -1280,7 +1290,6 @@ VISUAL LOCK: Preserve original image exactly. Transfer motion only.`;
                   placeholder="📺 COPY VIRAL (opcional) — cole um script que viralizou para modelar"
                   value={form.copyViral} onChange={e=>setForm2({copyViral:e.target.value})}/>
 
-                {/* SEO KEYWORD */}
                 <div style={{background:"#03111a", border:`2px solid ${form.seoKeyword?"#38bdf8":C.border}`, borderRadius:10, padding:"4px 4px 4px 14px", display:"flex", alignItems:"center", gap:10}}>
                   <div style={{flexShrink:0}}>
                     <div style={{fontSize:16}}>🔍</div>
@@ -1313,7 +1322,6 @@ VISUAL LOCK: Preserve original image exactly. Transfer motion only.`;
               </div>
             </div>
 
-            {/* NICHO SELECTOR */}
             <div style={{background:C.card, border:`1px solid ${C.border}`, borderRadius:16, padding:18, marginBottom:16}}>
               <div style={{fontSize:9, color:C.teal, letterSpacing:2, marginBottom:12, fontFamily:font}}>🎯 NICHO (para Legendas)</div>
               <div style={{display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(100px,1fr))", gap:8}}>
@@ -1330,7 +1338,6 @@ VISUAL LOCK: Preserve original image exactly. Transfer motion only.`;
               </div>
             </div>
 
-            {/* QUANTIDADE + BLINDADOR */}
             <div style={{background:C.card, border:`1px solid ${C.border}`, borderRadius:16, padding:18, marginBottom:16}}>
               <div style={{fontSize:9, color:C.gold, letterSpacing:2, marginBottom:10, fontFamily:font}}>📊 QUANTIDADE: {qtd}</div>
               <input type="range" min={3} max={20} step={1} value={qtd} onChange={e=>setQtd(+e.target.value)} style={{width:"100%", marginBottom:12}}/>
@@ -1352,7 +1359,6 @@ VISUAL LOCK: Preserve original image exactly. Transfer motion only.`;
               </div>
             </div>
 
-            {/* HOOK SELECIONADO PARA ROTEIRO */}
             {s.hooks?.pov_hooks?.length>0&&(
               <div style={{background:C.card, border:`1px solid ${C.border}`, borderRadius:16, padding:18, marginBottom:16}}>
                 <div style={{fontSize:9, color:C.purple, letterSpacing:2, marginBottom:10, fontFamily:font}}>⚡ HOOK DE REFERÊNCIA PARA ROTEIROS (opcional)</div>
@@ -1596,7 +1602,6 @@ VISUAL LOCK: Preserve original image exactly. Transfer motion only.`;
 
                   <CopyBox label="📱 POV HOOK" content={r.pov_hook} id={`rp${i}`} copied={copied} onCopy={onCopy} large/>
 
-                  {/* 5 FASES */}
                   {SCRIPT_PHASES.some(p=>r[p.key]?.fala)&&(
                     <div style={{marginBottom:12}}>
                       <div style={{fontSize:9, color:C.purple, letterSpacing:2, marginBottom:8, fontFamily:font}}>🎙 5 FASES DO ROTEIRO</div>
@@ -1677,7 +1682,7 @@ VISUAL LOCK: Preserve original image exactly. Transfer motion only.`;
           </div>
         )}
 
-        {/* ══════════════════ LEGENDAS (NOVO) ══════════════════ */}
+        {/* ══════════════════ LEGENDAS ══════════════════ */}
         {aba==="legendas" && (
           <div style={{animation:"fadeUp .3s ease"}}>
             <Badge color={C.teal}>📝 LEGENDAS + HASHTAGS</Badge>
@@ -1690,7 +1695,6 @@ VISUAL LOCK: Preserve original image exactly. Transfer motion only.`;
             <div style={{fontSize:20, fontWeight:800, marginBottom:4}}>{s.legendas?.legendas?.length||0} Variações de Legenda</div>
             <div style={{fontSize:12, color:C.dim, marginBottom:16, fontFamily:font}}>Nicho: {nicho.emoji} {nicho.label} · Configure em 📦 Produto</div>
 
-            {/* Gerador rápido de legendas */}
             <div style={{background:C.card, border:`1px solid ${C.teal}30`, borderRadius:14, padding:18, marginBottom:20}}>
               <div style={{fontSize:9, color:C.teal, letterSpacing:2, marginBottom:12, fontFamily:font}}>⚙️ GERAR LEGENDAS</div>
               <div style={{display:"grid", gap:10, marginBottom:12}}>
@@ -1848,70 +1852,93 @@ VISUAL LOCK: Preserve original image exactly. Transfer motion only.`;
           </div>
         )}
 
-        {/* ══════════════════ MONETIZAÇÃO ══════════════════ */}
+        {/* ══════════════════ MONETIZAÇÃO (CORRIGIDA) ══════════════════ */}
         {aba==="monet" && (
           <div style={{animation:"fadeUp .3s ease"}}>
             <div style={{marginBottom:20}}>
-              <Badge color="#e879f9">💎 MONETIZAÇÃO · ENGAJAMENTO RURAL</Badge>
-              <div style={{fontSize:20, fontWeight:800, marginBottom:4}}>Roteiros para Crescer até 2K Seguidores</div>
-              <div style={{fontSize:12, color:C.dim, fontFamily:font}}>Escolha a persona → defina quantidade → copie e poste</div>
-            </div>
-
-            {/* PERSONA SELECTOR */}
-            <div style={{display:"grid", gridTemplateColumns:"1fr 1fr", gap:12, marginBottom:16}}>
-              {[
-                {id:"fazendeiro", label:"🤠 Fazendeiro Rico", desc:"Seduz mulheres com o lifestyle do campo", cor:"#f59e0b"},
-                {id:"menina",     label:"🌻 Menina da Roça",   desc:"Seduz homens maduros com autenticidade", cor:"#e879f9"},
-              ].map(p=>(
-                <div key={p.id} onClick={()=>setMonetPersona(p.id)} style={{
-                  background:monetPersona===p.id?p.cor+"18":C.card,
-                  border:`2px solid ${monetPersona===p.id?p.cor:C.border}`,
-                  borderRadius:14, padding:"18px 16px", cursor:"pointer", transition:"all .2s", textAlign:"center"
-                }}>
-                  <div style={{fontSize:36, marginBottom:8}}>{p.id==="fazendeiro"?"🤠":"🌻"}</div>
-                  <div style={{fontSize:14, fontWeight:700, color:monetPersona===p.id?p.cor:C.text, marginBottom:4}}>{p.label}</div>
-                  <div style={{fontSize:11, color:C.dim, fontFamily:font, lineHeight:1.5}}>{p.desc}</div>
-                  {monetPersona===p.id&&<div style={{marginTop:10, fontSize:10, color:p.cor, fontFamily:font, fontWeight:700, letterSpacing:2}}>✓ SELECIONADO</div>}
-                </div>
-              ))}
-            </div>
-
-            {/* PERSONA INFO */}
-            <div style={{background:C.card, border:`1px solid ${monetPersona==="fazendeiro"?"#f59e0b30":"#e879f930"}`, borderRadius:12, padding:14, marginBottom:16}}>
-              <div style={{fontSize:9, color:monetPersona==="fazendeiro"?"#f59e0b":"#e879f9", letterSpacing:2, marginBottom:10, fontFamily:font}}>
-                {monetPersona==="fazendeiro"?"🤠 ARQUÉTIPOS DO FAZENDEIRO":"🌻 ARQUÉTIPOS DA MENINA DA ROÇA"}
+              <Badge color="#e879f9">💎 MONETIZAÇÃO · PROMPT COMPLETO COM AVATAR</Badge>
+              <div style={{fontSize:20, fontWeight:800, marginBottom:4}}>Roteiro + Avatar + Regras = Prompt Final</div>
+              <div style={{fontSize:12, color:C.dim, fontFamily:font}}>
+                Gera o prompt completo no formato: descrição do avatar + regras fixas + roteiro em português
               </div>
-              <div style={{display:"flex", flexWrap:"wrap", gap:6}}>
-                {(monetPersona==="fazendeiro"
-                  ? ["O Protetor","O Sedutor","O Direto","O Romântico","O Ostentador Rural"]
-                  : ["A Desafiadora","A Romântica","A Direta","A Trabalhadora","A Carente"]
-                ).map(a=>(
-                  <span key={a} style={{fontSize:10, color:C.mid, background:C.card2, border:`1px solid ${C.border}`, borderRadius:20, padding:"4px 12px", fontFamily:font}}>{a}</span>
+            </div>
+
+            {/* PASSO 1: PERSONA */}
+            <div style={{background:C.card, border:`1px solid ${C.border}`, borderRadius:14, padding:18, marginBottom:16}}>
+              <div style={{fontSize:9, color:"#e879f9", letterSpacing:2, marginBottom:12, fontFamily:font}}>
+                🎭 PASSO 1: ESCOLHA A PERSONA
+              </div>
+              <div style={{display:"grid", gridTemplateColumns:"1fr 1fr", gap:12}}>
+                {[
+                  {id:"fazendeiro", label:"🤠 Fazendeiro Rico", desc:"Seduz mulheres 30-55 anos", cor:"#f59e0b", icon:"🤠"},
+                  {id:"menina",     label:"🌻 Menina da Roça",   desc:"Seduz homens 35-60 anos",   cor:"#e879f9", icon:"🌻"},
+                ].map(p=>(
+                  <div key={p.id} onClick={()=>setMonetPersona(p.id)} style={{
+                    background:monetPersona===p.id?p.cor+"18":C.card,
+                    border:`2px solid ${monetPersona===p.id?p.cor:C.border}`,
+                    borderRadius:14, padding:"18px 16px", cursor:"pointer", transition:"all .2s", textAlign:"center"
+                  }}>
+                    <div style={{fontSize:36, marginBottom:8}}>{p.icon}</div>
+                    <div style={{fontSize:14, fontWeight:700, color:monetPersona===p.id?p.cor:C.text, marginBottom:4}}>{p.label}</div>
+                    <div style={{fontSize:11, color:C.dim, fontFamily:font, lineHeight:1.5}}>{p.desc}</div>
+                    {monetPersona===p.id&&<div style={{marginTop:10, fontSize:10, color:p.cor, fontFamily:font, fontWeight:700, letterSpacing:2}}>✓ SELECIONADO</div>}
+                  </div>
                 ))}
               </div>
-              <div style={{marginTop:12, fontSize:11, color:C.mid, lineHeight:1.6}}>
-                <strong style={{color:C.text}}>Exemplo de qualidade:</strong>
-                <div style={{marginTop:6, padding:"10px 12px", background:C.card2, borderRadius:8, fontSize:12, lineHeight:1.7, color:C.text, fontStyle:"italic"}}>
-                  {monetPersona==="fazendeiro"
-                    ? '"A vida no campo é boa, mas falta uma rainha pra cuidar desse império comigo. Quer ser dona do meu coração? Curta, siga e comente: EU QUERO!"'
-                    : '"Cuido de boi, cuido de fazenda, cuido de tudo... mas ninguém cuida de mim. Você se habilita? Me segue, curta e deixa um oi aqui!"'
-                  }
-                </div>
+            </div>
+
+            {/* PASSO 2: AVATARES */}
+            <div style={{background:C.card, border:`1px solid ${C.border}`, borderRadius:14, padding:18, marginBottom:16}}>
+              <div style={{fontSize:9, color:"#e879f9", letterSpacing:2, marginBottom:12, fontFamily:font}}>
+                🎬 PASSO 2: AVATARES DISPONÍVEIS (sorteio aleatório)
+              </div>
+              
+              <div style={{display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(230px,1fr))", gap:10, marginBottom:14}}>
+                {Object.entries(AVATARES).map(([id, avatar]) => (
+                  <div key={id} className="hov-gold" style={{
+                    background:C.card2, 
+                    border:`2px solid ${C.border}`,
+                    borderRadius:10, 
+                    padding:"12px", 
+                    transition:"all .15s"
+                  }}>
+                    <div style={{display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:6}}>
+                      <span style={{fontSize:12, fontWeight:600, color:C.text}}>{avatar.nome}</span>
+                      <span style={{fontSize:9, color:C.dim, fontFamily:font, background:C.card, padding:"2px 8px", borderRadius:10}}>#{id}</span>
+                    </div>
+                    <div style={{fontSize:9, color:C.mid, lineHeight:1.4, fontFamily:font}}>
+                      {avatar.prompt.slice(0, 100).replace(/\n/g, " ")}...
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <div style={{display:"flex", gap:8, alignItems:"center", padding:"10px 14px", background:"#e879f908", border:"1px solid #e879f930", borderRadius:8}}>
+                <span style={{fontSize:16}}>🎲</span>
+                <span style={{fontSize:11, color:"#e879f9", fontFamily:font}}>
+                  O avatar será sorteado <strong>aleatoriamente</strong> a cada prompt gerado.
+                </span>
               </div>
             </div>
 
-            {/* QUANTIDADE + GERAR */}
+            {/* PASSO 3: CONFIGURAÇÃO */}
             <div style={{background:C.card, border:`1px solid ${C.border}`, borderRadius:14, padding:18, marginBottom:16}}>
+              <div style={{fontSize:9, color:"#e879f9", letterSpacing:2, marginBottom:12, fontFamily:font}}>
+                ⚙️ PASSO 3: CONFIGURAÇÃO
+              </div>
+              
               <div style={{display:"flex", alignItems:"center", gap:16, marginBottom:16}}>
-                <span style={{fontSize:11, color:C.mid, fontFamily:font}}>Quantidade de roteiros:</span>
-                <input type="range" min={5} max={30} step={5} value={monetQtd} onChange={e=>setMonetQtd(+e.target.value)} style={{flex:1}}/>
+                <span style={{fontSize:11, color:C.mid, fontFamily:font}}>Quantidade de prompts:</span>
+                <input type="range" min={1} max={20} step={1} value={monetQtd} onChange={e=>setMonetQtd(+e.target.value)} style={{flex:1}}/>
                 <span style={{fontSize:28, fontWeight:900, color:"#e879f9", minWidth:36, fontFamily:font}}>{monetQtd}</span>
               </div>
+
               {erro&&<div style={{padding:"10px 14px", background:C.pinkd, border:`1px solid ${C.pink}40`, borderRadius:8, fontSize:12, color:C.pink, marginBottom:12}}>⚠️ {erro}</div>}
+              
               <Btn onClick={gerarMonet} disabled={loading} color="#e879f9" style={{width:"100%", fontSize:14, padding:"14px"}}>
                 {loading
-                  ? `⟳ Gerando roteiros de ${monetPersona==="fazendeiro"?"fazendeiro":"menina da roça"}...`
-                  : `💎 Gerar ${monetQtd} Roteiros · ${monetPersona==="fazendeiro"?"🤠 Fazendeiro":"🌻 Menina da Roça"}`}
+                  ? `⟳ Gerando ${monetQtd} prompts com avatar aleatório...`
+                  : `💎 Gerar ${monetQtd} Prompts Completos · ${monetPersona==="fazendeiro"?"🤠 Fazendeiro":"🌻 Menina da Roça"}`}
               </Btn>
             </div>
 
@@ -1920,50 +1947,171 @@ VISUAL LOCK: Preserve original image exactly. Transfer motion only.`;
               <div style={{animation:"fadeUp .3s ease"}}>
                 <div style={{display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:16}}>
                   <div>
-                    <div style={{fontSize:9, color:"#e879f9", letterSpacing:3, marginBottom:4, fontFamily:font}}>ROTEIROS GERADOS</div>
-                    <div style={{fontSize:20, fontWeight:900}}>{s.monet.roteiros.length} roteiros prontos para postar</div>
+                    <div style={{fontSize:9, color:"#e879f9", letterSpacing:3, marginBottom:4, fontFamily:font}}>
+                      PROMPTS COMPLETOS GERADOS
+                    </div>
+                    <div style={{fontSize:20, fontWeight:900}}>
+                      {s.monet.roteiros.length} prompts prontos para copiar e colar
+                    </div>
                   </div>
-                  <Btn onClick={()=>onCopy(s.monet.roteiros.map((r,i)=>`${i+1}. [${r.arquetipo}]\n${r.roteiro}`).join("\n\n"),"monet_all")} color={C.green} style={{padding:"9px 16px", fontSize:11}}>
-                    {copied==="monet_all"?"✓ Copiados!":"📋 Copiar Todos"}
-                  </Btn>
                 </div>
 
-                {s.monet.roteiros.map((r,i)=>{
+                {s.monet.roteiros.map((r, i) => {
                   const palavras = (r.roteiro||"").split(" ").filter(Boolean).length;
                   const ok = palavras <= 40;
+                  
+                  // Sorteia um avatar diferente para cada prompt
+                  const chavesAvatares = Object.keys(AVATARES);
+                  const avatarSorteado = AVATARES[chavesAvatares[i % chavesAvatares.length]];
+                  
+                  // Monta o prompt completo
+                  const promptCompleto = `${avatarSorteado.prompt}
+
+He speaks in Brazilian Portuguese:
+"${r.roteiro}"
+
+No on-screen text, no subtitles, no captions, no emoji, no transitions. Natural selfie video, realistic lip sync, subtle facial expression, natural blinking, slight head movement, looking directly at camera, realistic smartphone front camera feel, single continuous shot, ultra realistic motion.`;
+                  
                   return (
-                    <div key={i} style={{background:C.card, border:`1px solid ${C.border}`, borderRadius:13, padding:18, marginBottom:12, animation:`fadeUp .3s ease ${i*.03}s both`}}>
+                    <div key={i} style={{
+                      background:C.card, 
+                      border:`2px solid ${C.border}`, 
+                      borderRadius:14, 
+                      padding:18, 
+                      marginBottom:16, 
+                      animation:`fadeUp .3s ease ${i*.04}s both`
+                    }}>
+                      {/* HEADER */}
                       <div style={{display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:12}}>
                         <div style={{display:"flex", gap:8, alignItems:"center"}}>
-                          <Badge color="#e879f9">#{r.numero}</Badge>
-                          <span style={{fontSize:11, color:"#f59e0b", background:"#f59e0b18", border:"1px solid #f59e0b30", borderRadius:20, padding:"3px 10px", fontFamily:font}}>{r.arquetipo}</span>
+                          <Badge color="#e879f9">PROMPT #{i+1}</Badge>
+                          <span style={{
+                            fontSize:11, 
+                            color:"#f59e0b", 
+                            background:"#f59e0b18", 
+                            border:"1px solid #f59e0b30", 
+                            borderRadius:20, 
+                            padding:"3px 10px", 
+                            fontFamily:font
+                          }}>
+                            {r.arquetipo}
+                          </span>
                         </div>
                         <div style={{display:"flex", gap:8, alignItems:"center"}}>
-                          <span style={{fontSize:10, background:ok?C.greend:C.pinkd, color:ok?C.green:C.pink, padding:"3px 10px", borderRadius:20, fontFamily:font}}>
-                            {palavras} pal {ok?"✓":"⚠ excedeu"}
+                          <span style={{
+                            fontSize:10, 
+                            background:ok?C.greend:C.pinkd, 
+                            color:ok?C.green:C.pink, 
+                            padding:"3px 10px", 
+                            borderRadius:20, 
+                            fontFamily:font
+                          }}>
+                            {palavras} palavras {ok?"✓":"⚠"}
                           </span>
-                          <span style={{fontSize:9, color:C.dim, fontFamily:font}}>{r.hook_tipo}</span>
+                          <span style={{fontSize:10, color:C.dim, fontFamily:font, background:C.card2, padding:"3px 10px", borderRadius:20}}>
+                            🎬 {avatarSorteado.nome}
+                          </span>
                         </div>
                       </div>
 
-                      {/* ROTEIRO CLICÁVEL */}
-                      <div onClick={()=>onCopy(r.roteiro,`monet${i}`)} style={{
-                        background:"#e879f908", border:`1px solid ${copied===`monet${i}`?C.green:"#e879f930"}`,
-                        borderRadius:10, padding:"16px 14px", cursor:"pointer", marginBottom:10, transition:"all .15s"
+                      {/* AVATAR INFO */}
+                      <div style={{
+                        background:C.card2, 
+                        border:`1px solid ${C.border}`, 
+                        borderRadius:8, 
+                        padding:"8px 12px", 
+                        marginBottom:12,
+                        display:"flex",
+                        gap:8,
+                        alignItems:"flex-start"
                       }}>
-                        <div style={{fontSize:16, fontWeight:600, lineHeight:1.7, color:C.text}}>{r.roteiro}</div>
-                        <div style={{fontSize:9, color:copied===`monet${i}`?C.green:C.dim, marginTop:8, fontFamily:font}}>
-                          {copied===`monet${i}`?"✓ copiado!":"clique para copiar"}
+                        <span style={{fontSize:14, flexShrink:0}}>🎬</span>
+                        <div>
+                          <div style={{fontSize:10, color:C.gold, fontFamily:font, letterSpacing:1, marginBottom:3}}>
+                            AVATAR: {avatarSorteado.nome}
+                          </div>
+                          <div style={{fontSize:10, color:C.mid, fontFamily:font, lineHeight:1.4}}>
+                            {avatarSorteado.prompt.slice(0, 120).replace(/\n/g, " ")}...
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* ROTEIRO */}
+                      <div style={{
+                        background:"#e879f908", 
+                        border:`1px solid #e879f930`,
+                        borderRadius:8, 
+                        padding:"10px 14px", 
+                        marginBottom:12
+                      }}>
+                        <div style={{fontSize:9, color:"#e879f9", letterSpacing:1, marginBottom:5, fontFamily:font}}>
+                          📝 ROTEIRO ({palavras} palavras)
+                        </div>
+                        <div style={{fontSize:14, fontWeight:600, color:C.text, lineHeight:1.6}}>
+                          "{r.roteiro}"
                         </div>
                       </div>
 
                       {/* CTA */}
                       {r.cta_principal&&(
-                        <div style={{background:C.card2, borderRadius:8, padding:"8px 12px", display:"flex", alignItems:"center", gap:8}}>
+                        <div style={{
+                          background:C.card2, 
+                          borderRadius:8, 
+                          padding:"8px 12px", 
+                          marginBottom:12,
+                          display:"flex", 
+                          alignItems:"center", 
+                          gap:8
+                        }}>
                           <span style={{fontSize:11}}>👆</span>
                           <span style={{fontSize:11, color:C.mid, fontFamily:font}}>{r.cta_principal}</span>
                         </div>
                       )}
+
+                      {/* PROMPT COMPLETO */}
+                      <div style={{
+                        background:"linear-gradient(135deg,#1a0a2e,#0d0d12)", 
+                        border:"2px solid #e879f960", 
+                        borderRadius:12, 
+                        overflow:"hidden"
+                      }}>
+                        <div style={{
+                          background:"#e879f915", 
+                          padding:"12px 16px", 
+                          borderBottom:"1px solid #e879f930",
+                          display:"flex", 
+                          justifyContent:"space-between", 
+                          alignItems:"center"
+                        }}>
+                          <div>
+                            <div style={{fontSize:9, color:"#e879f9", letterSpacing:3, fontFamily:font, fontWeight:700}}>
+                              🎯 PROMPT COMPLETO (PRONTO PARA COPIAR)
+                            </div>
+                            <div style={{fontSize:10, color:"#c084fc", marginTop:2, fontFamily:font}}>
+                              Avatar: {avatarSorteado.nome} · {palavras} palavras
+                            </div>
+                          </div>
+                          <Btn 
+                            onClick={()=>onCopy(promptCompleto, `monet_full_${i}`)} 
+                            color={copied===`monet_full_${i}`?C.green:C.gold} 
+                            style={{padding:"8px 16px", fontSize:11}}
+                          >
+                            {copied===`monet_full_${i}`?"✓ Copiado!":"📋 Copiar Prompt"}
+                          </Btn>
+                        </div>
+                        <div style={{padding:16, maxHeight:300, overflowY:"auto"}}>
+                          <pre style={{
+                            fontSize:11, 
+                            color:"#e0d6ff", 
+                            lineHeight:1.7, 
+                            fontFamily:font, 
+                            whiteSpace:"pre-wrap",
+                            margin:0
+                          }}>
+                            {promptCompleto}
+                          </pre>
+                        </div>
+                      </div>
                     </div>
                   );
                 })}
@@ -1981,7 +2129,6 @@ VISUAL LOCK: Preserve original image exactly. Transfer motion only.`;
               Extrai o DNA de movimento e gera o prompt exato para Veo 3 · Runway · Kling · Minimax
             </div>
 
-            {/* SELETOR DE MODO */}
             <div style={{display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:10, marginBottom:16}}>
               {[
                 {id:"descricao", emoji:"✍️", label:"Descrever",    sub:"Descreva o vídeo em texto",           cor:"#22d3ee"},
@@ -2001,7 +2148,6 @@ VISUAL LOCK: Preserve original image exactly. Transfer motion only.`;
               ))}
             </div>
 
-            {/* CAMPO PRODUTO — COMUM A TODOS OS MODOS */}
             <div style={{background:C.card, border:"1px solid #22d3ee20", borderRadius:12, padding:14, marginBottom:12}}>
               <div style={{fontSize:9, color:"#22d3ee", letterSpacing:2, marginBottom:8, fontFamily:font}}>📦 PRODUTO SENDO SEGURADO (opcional)</div>
               <input style={inp({border:`1px solid ${cloneProd?"#22d3ee60":C.border}`})}
@@ -2009,7 +2155,6 @@ VISUAL LOCK: Preserve original image exactly. Transfer motion only.`;
                 value={cloneProd} onChange={e=>setCloneProd(e.target.value)}/>
             </div>
 
-            {/* ── MODO 1: DESCRIÇÃO ── */}
             {cloneMode==="descricao"&&(
               <div style={{background:C.card, border:"1px solid #22d3ee30", borderRadius:16, padding:20, marginBottom:16}}>
                 <div style={{fontSize:9, color:"#22d3ee", letterSpacing:2, marginBottom:8, fontFamily:font}}>🎥 DESCREVA O MOVIMENTO DAS MÃOS NO VÍDEO</div>
@@ -2028,7 +2173,6 @@ VISUAL LOCK: Preserve original image exactly. Transfer motion only.`;
               </div>
             )}
 
-            {/* ── MODO 2: FRAMES ── */}
             {cloneMode==="frames"&&(
               <div style={{background:C.card, border:"1px solid #a78bfa30", borderRadius:16, padding:20, marginBottom:16}}>
                 <div style={{fontSize:9, color:"#a78bfa", letterSpacing:2, marginBottom:8, fontFamily:font}}>🎞️ UPLOAD DO VÍDEO REFERÊNCIA</div>
@@ -2059,7 +2203,6 @@ VISUAL LOCK: Preserve original image exactly. Transfer motion only.`;
                   <input type="file" accept="video/*" style={{display:"none"}} onChange={e=>{setCloneVideo(e.target.files[0]||null);setCloneRes(null);setCloneFrames([]);setErro(null);}}/>
                 </label>
 
-                {/* PREVIEW DE FRAMES EXTRAÍDOS */}
                 {cloneFrames.length>0&&(
                   <div style={{marginBottom:16}}>
                     <div style={{fontSize:9, color:"#a78bfa", letterSpacing:2, marginBottom:8, fontFamily:font}}>{cloneFrames.length} FRAMES EXTRAÍDOS</div>
@@ -2086,7 +2229,6 @@ VISUAL LOCK: Preserve original image exactly. Transfer motion only.`;
               </div>
             )}
 
-            {/* ── MODO 3: GEMINI ── */}
             {cloneMode==="gemini"&&(
               <div style={{background:C.card, border:"1px solid #4ade8030", borderRadius:16, padding:20, marginBottom:16}}>
                 <div style={{background:"#4ade8008", border:"1px solid #4ade8030", borderRadius:10, padding:"10px 14px", marginBottom:16, display:"flex", gap:10}}>
@@ -2129,9 +2271,6 @@ VISUAL LOCK: Preserve original image exactly. Transfer motion only.`;
                 <div style={{fontSize:10, color:C.dim, marginBottom:16, fontFamily:font}}>
                   Sem key? → <a href="https://aistudio.google.com/apikey" target="_blank" rel="noreferrer" style={{color:"#4ade80"}}>aistudio.google.com/apikey</a> · 100% gratuito
                 </div>
-                <div style={{fontSize:10, color:C.dim, marginBottom:16, fontFamily:font}}>
-                  Sem key? → <a href="https://aistudio.google.com/apikey" target="_blank" rel="noreferrer" style={{color:"#4ade80"}}>aistudio.google.com/apikey</a> · 100% gratuito
-                </div>
 
                 <div style={{fontSize:9, color:"#4ade80", letterSpacing:2, marginBottom:8, fontFamily:font}}>🎬 VÍDEO REFERÊNCIA</div>
                 <label style={{display:"block", marginBottom:16}}>
@@ -2169,7 +2308,6 @@ VISUAL LOCK: Preserve original image exactly. Transfer motion only.`;
               </div>
             )}
 
-            {/* TIMELINE REFERÊNCIA */}
             <div style={{background:C.card2, border:`1px solid ${C.border}`, borderRadius:10, padding:14, marginBottom:16}}>
               <div style={{fontSize:9, color:"#22d3ee", letterSpacing:2, marginBottom:10, fontFamily:font}}>⏱ ESTRUTURA 10s · DNA DO AGENTE</div>
               <div style={{display:"grid", gap:6}}>
@@ -2183,7 +2321,6 @@ VISUAL LOCK: Preserve original image exactly. Transfer motion only.`;
               </div>
             </div>
 
-            {/* RESULTADO — COMUM AOS 3 MODOS */}
             {cloneRes&&(
               <div style={{animation:"fadeUp .3s ease"}}>
                 {cloneRes.analise&&(
@@ -2237,8 +2374,6 @@ VISUAL LOCK: Preserve original image exactly. Transfer motion only.`;
             </div>
 
             <div style={{background:C.card, border:`1px solid #fb923c30`, borderRadius:16, padding:20, marginBottom:16}}>
-
-              {/* TEXTAREA TRANSCRIÇÃO */}
               <div style={{fontSize:9, color:"#fb923c", letterSpacing:2, marginBottom:8, fontFamily:font}}>
                 📋 COLE A TRANSCRIÇÃO DO VÍDEO VIRAL
               </div>
@@ -2249,14 +2384,12 @@ VISUAL LOCK: Preserve original image exactly. Transfer motion only.`;
                 onChange={e=>{setModelarTxt(e.target.value); setErro(null);}}
               />
 
-              {/* CONTADOR DE PALAVRAS DO ORIGINAL */}
               {modelarTxt&&(
                 <div style={{fontSize:10, color:C.dim, marginBottom:16, fontFamily:font, textAlign:"right"}}>
                   📊 Original: <strong style={{color:C.text}}>{modelarTxt.trim().split(/\s+/).filter(Boolean).length} palavras</strong>
                 </div>
               )}
 
-              {/* LIMITE DE PALAVRAS */}
               <div style={{fontSize:9, color:"#fb923c", letterSpacing:2, marginBottom:12, fontFamily:font}}>
                 ✂️ LIMITE DE PALAVRAS DA VERSÃO CONDENSADA
               </div>
@@ -2275,7 +2408,6 @@ VISUAL LOCK: Preserve original image exactly. Transfer motion only.`;
                 ))}
               </div>
 
-              {/* QUANTIDADE DE VERSÕES */}
               <div style={{fontSize:9, color:"#fb923c", letterSpacing:2, marginBottom:10, fontFamily:font}}>
                 🔢 VERSÕES A GERAR
               </div>
@@ -2284,7 +2416,6 @@ VISUAL LOCK: Preserve original image exactly. Transfer motion only.`;
                 <span style={{fontSize:28, fontWeight:900, color:"#fb923c", minWidth:30, fontFamily:font}}>{modelarQtd}</span>
               </div>
 
-              {/* SEO BADGE */}
               {form.seoKeyword&&(
                 <div style={{background:"#38bdf808", border:"1px solid #38bdf820", borderRadius:8, padding:"8px 12px", marginBottom:16, display:"flex", gap:8, alignItems:"center"}}>
                   <span style={{fontSize:13}}>🔍</span>
@@ -2299,7 +2430,6 @@ VISUAL LOCK: Preserve original image exactly. Transfer motion only.`;
               </Btn>
             </div>
 
-            {/* RESULTADO: ANÁLISE */}
             {s.modelar?.analise&&(
               <div style={{background:"#fb923c0a", border:"1px solid #fb923c30", borderRadius:14, padding:18, marginBottom:16, animation:"fadeUp .3s ease"}}>
                 <div style={{fontSize:9, color:"#fb923c", letterSpacing:2, marginBottom:14, fontFamily:font}}>🔬 ENGENHARIA DETECTADA NO ORIGINAL</div>
@@ -2331,7 +2461,6 @@ VISUAL LOCK: Preserve original image exactly. Transfer motion only.`;
               </div>
             )}
 
-            {/* RESULTADO: VERSÕES */}
             {s.modelar?.versoes?.length>0&&(
               <div style={{animation:"fadeUp .3s ease"}}>
                 <div style={{display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:14}}>
@@ -2362,7 +2491,6 @@ VISUAL LOCK: Preserve original image exactly. Transfer motion only.`;
                         </div>
                       </div>
 
-                      {/* ROTEIRO PRINCIPAL */}
                       <div onClick={()=>onCopy(v.roteiro,`mod${i}`)} style={{
                         background:"#fb923c08", border:`1px solid ${copied===`mod${i}`?C.green:"#fb923c30"}`,
                         borderRadius:10, padding:"16px 14px", cursor:"pointer", marginBottom:12, transition:"all .15s"
@@ -2373,7 +2501,6 @@ VISUAL LOCK: Preserve original image exactly. Transfer motion only.`;
                         </div>
                       </div>
 
-                      {/* META INFO */}
                       <div style={{display:"grid", gridTemplateColumns:"1fr 1fr", gap:8}}>
                         {v.hook&&(
                           <div style={{background:C.card2, borderRadius:8, padding:"8px 10px"}}>
