@@ -70,7 +70,7 @@ const PROVIDERS_CFG = {
   },
 };
 
-async function callOpenRouter(key, prompt, max_tokens = 4000) {
+async function callOpenRouter(key, prompt, max_tokens = 3000) {
   const r = await fetch("https://openrouter.ai/api/v1/chat/completions", {
     method: "POST",
     headers: {
